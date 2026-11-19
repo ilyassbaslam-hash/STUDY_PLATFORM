@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create your account — Lumen</title>
+  <meta name="description" content="Create a free Lumen account and build a calmer study routine.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/marketing.css">
+</head>
+<body>
+
+<main class="auth-page">
+  <aside class="auth-aside">
+    <a class="brand" href="index.html" aria-label="Lumen home">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/><circle cx="12" cy="12" r="2.3"/>
+        </svg>
+      </span>
+      <span>Lumen</span>
+    </a>
+
+    <div class="auth-main-quote">
+      <span class="eyebrow"><span class="dot"></span>Start small</span>
+      <blockquote>One lesson. One honest plan. <em>One calmer week.</em></blockquote>
+      <div class="auth-person">
+        <span class="avatar">MK</span>
+        <div>
+          <strong>Maya K.</strong>
+          <span>Second-year biology</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-aside-foot">
+      <div class="auth-stat"><strong>10 min</strong><span>a real start</span></div>
+      <div class="auth-stat"><strong>Free</strong><span>to begin</span></div>
+      <div class="auth-stat"><strong>1 place</strong><span>for everything</span></div>
+    </div>
+  </aside>
+
+  <section class="auth-main">
+    <div class="auth-card">
+      <a class="brand auth-mobile-brand" href="index.html">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/><circle cx="12" cy="12" r="2.3"/>
+          </svg>
+        </span>
+        <span>Lumen</span>
+      </a>
+
+      <span class="eyebrow"><span class="dot"></span>Create account</span>
+      <h1>Your calmer study<br>routine starts here.</h1>
+      <p class="auth-sub">Free to join. Two minutes to set up. Nothing to unsubscribe from.</p>
+
+      <div class="auth-social">
+        <button class="btn" type="button" data-social-signup>
+          <span data-icon="globe"></span> Google
+        </button>
+        <button class="btn" type="button" data-social-signup>
+          <span data-icon="school"></span> School SSO
+        </button>
+      </div>
+
+      <div class="auth-divider">or create with email</div>
+
+      <form class="auth-form" id="signup-form">
+        <div class="field">
+          <label class="label" for="name">Your name</label>
+          <div class="input-icon">
+            <span data-icon="user"></span>
+            <input class="input" id="name" name="name" type="text" autocomplete="name" placeholder="Alex Rivera" required maxlength="60">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label" for="email">Email address</label>
+          <div class="input-icon">
+            <span data-icon="mail"></span>
+            <input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label" for="password">Password <span class="hint">8+ characters</span></label>
+          <div class="input-icon password-wrap">
+            <span data-icon="lock"></span>
+            <input class="input has-trailing" id="password" name="password" type="password" autocomplete="new-password" placeholder="Choose a password" required minlength="8">
+            <button class="input-trailing" type="button" data-toggle-password="password" aria-label="Show password"><span data-icon="eye"></span></button>
+          </div>
+        </div>
+        <div class="auth-row-between">
+          <label class="check-row"><input type="checkbox" name="terms" required> I agree to the terms</label>
+          <a href="404.html">Privacy</a>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">Create my free account</button>
+      </form>
+
+      <p class="auth-legal">Demo mode — your account and progress are stored only in this browser.</p>
+      <p class="auth-footer">Already have an account? <a href="login.html">Log in</a></p>
+    </div>
+  </section>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.init();
+
+  document.querySelectorAll('[data-toggle-password]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var input = document.getElementById(button.dataset.togglePassword);
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      button.innerHTML = UI.icon(show ? 'eyeOff' : 'eye');
+      button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      button.setAttribute('title', show ? 'Hide password' : 'Show password');
+    });
+  });
+
+  document.querySelectorAll('[data-social-signup]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      Store.data.profile.name = 'Alex Rivera';
+      Store.data.profile.email = 'alex@lumen.app';
+      Store.data.profile.onboarded = false;
+      Store.save();
+      window.location.href = 'onboarding.html';
+    });
+  });
+
+  document.getElementById('signup-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var name = document.getElementById('name').value.trim();
+    var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+
+    if (name.length < 2) {
+      UI.toast('Tell us what to call you.', 'error');
+      document.getElementById('name').focus();
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      UI.toast('Enter a valid email address.', 'error');
+      document.getElementById('email').focus();
+      return;
+    }
+    if (password.length < 8) {
+      UI.toast('Use at least 8 characters for your password.', 'error');
+      document.getElementById('password').focus();
+      return;
+    }
+
+    Store.data.profile.name = name;
+    Store.data.profile.email = email;
+    Store.data.profile.onboarded = false;
+    Store.data.profile.joined = new Date().toISOString();
+    Store.save();
+    window.location.href = 'onboarding.html';
+  });
+</script>
+</body>
+</html>

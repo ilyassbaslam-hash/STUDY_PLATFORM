@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson — Lumen</title>
+  <meta name="description" content="A focused lesson in Lumen.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="lesson">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="lesson-page" id="lesson-page"></div>
+
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'lesson' });
+
+  var course = App.getCourse(App.param('course')) || DB.courses[0];
+  var lesson = App.findLesson(course.id, App.param('lesson'));
+  var serial = App.serialLesson(course, lesson.id);
+  var text = (window.LESSON_NOTES && window.LESSON_NOTES[lesson.id]) || {
+    summary: 'This lesson introduces ' + lesson.title.toLowerCase() + ' in the context of ' + course.title.toLowerCase() + '.',
+    detail: course.core
+  };
+  var progress = App.courseProgress(course);
+  var isDone = !!(Store.data.lessons[lesson.id] && Store.data.lessons[lesson.id].done);
+  var notes = Store.data.lessonNotes || (Store.data.lessonNotes = {});
+  var nextLesson = serial.next;
+  var nextHref = nextLesson
+    ? 'lesson.html?course=' + encodeURIComponent(course.id) + '&lesson=' + encodeURIComponent(nextLesson.id)
+    : 'course.html?id=' + encodeURIComponent(course.id);
+  var prevHref = serial.prev
+    ? 'lesson.html?course=' + encodeURIComponent(course.id) + '&lesson=' + encodeURIComponent(serial.prev.id)
+    : null;
+
+  document.title = lesson.title + ' — ' + course.title + ' — Lumen';
+  var crumb = document.querySelector('.topbar-crumb');
+  if (crumb) crumb.textContent = lesson.title;
+
+  function lessonHref(id) {
+    return 'lesson.html?course=' + encodeURIComponent(course.id) + '&lesson=' + encodeURIComponent(id);
+  }
+
+  function outlineHtml() {
+    return serial.lessons.map(function (item) {
+      var done = Store.data.lessons[item.id] && Store.data.lessons[item.id].done;
+      var active = item.id === lesson.id;
+      return '<a class="outline-link' + (done ? ' done' : '') + (active ? ' active' : '') + '" href="' + lessonHref(item.id) + '"' + (active ? ' aria-current="page"' : '') + '>' +
+        '<span class="outline-dot" aria-hidden="true"></span>' +
+        '<span>' + App.esc(item.title) + '</span>' +
+        '<span class="mini-mins">' + item.mins + 'm</span>' +
+      '</a>';
+    }).join('');
+  }
+
+  function actionButton() {
+    return isDone
+      ? '<button class="btn" type="button" id="complete-btn">' + UI.icon('check') + '<span>Completed</span></button>'
+      : '<button class="btn btn-primary" type="button" id="complete-btn">' + UI.icon('check') + '<span>Mark complete</span></button>';
+  }
+
+  function render() {
+    var objectives = [
+      'Explain ' + lesson.title.toLowerCase() + ' in your own words.',
+      'Connect it to ' + course.subject.toLowerCase() + ' as a whole.',
+      'Recall it later with one flashcard or quiz question.'
+    ];
+
+    document.getElementById('lesson-page').innerHTML =
+      '<div class="lesson-head">' +
+        '<a class="link-arrow" href="course.html?id=' + encodeURIComponent(course.id) + '">' + UI.icon('arrowLeft') + ' ' + App.esc(course.title) + '</a>' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-top:9px;">' +
+          '<div style="min-width:0;flex:1;">' +
+            '<div class="resume-kicker"><span class="dot"></span>Module ' + (serial.lessons[serial.index] ? (course.modules[serial.lessons[serial.index].moduleIndex].title) : '') + ' · Lesson ' + (serial.index + 1) + ' of ' + serial.lessons.length + '</div>' +
+            '<h1>' + App.esc(lesson.title) + '</h1>' +
+            '<div class="lesson-meta">' +
+              '<span>' + UI.icon('book') + App.esc(course.subject) + '</span>' +
+              '<span class="dot-sep"></span>' +
+              '<span>' + UI.icon('clock') + lesson.mins + ' min read</span>' +
+              '<span class="dot-sep"></span>' +
+              '<span>' + UI.icon('sparkle') + 'Quick check inside</span>' +
+              (isDone ? '<span class="dot-sep"></span><span class="badge badge-green">' + UI.icon('check') + ' Completed</span>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div class="lesson-actions" id="lesson-actions">' + actionButton() + '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="lesson-layout">' +
+        '<article class="lesson-content">' +
+          '<div class="prose">' +
+            '<p class="lead">' + App.esc(text.summary) + '</p>' +
+            '<p>' + App.esc(text.detail) + '</p>' +
+
+            '<div class="objectives">' +
+              '<h4>In this lesson</h4>' +
+              objectives.map(function (objective) {
+                return '<div class="objective">' + UI.icon('check') + '<span>' + App.esc(objective) + '</span></div>';
+              }).join('') +
+            '</div>' +
+
+            '<h2>Why it matters</h2>' +
+            '<p>' + App.esc(course.why) + '</p>' +
+
+            '<h2>The core idea</h2>' +
+            '<p>' + App.esc(course.core) + '</p>' +
+
+            '<h3>Three things to hold onto</h3>' +
+            '<ul>' + course.keyIdeas.map(function (idea) { return '<li>' + App.esc(idea) + '</li>'; }).join('') + '</ul>' +
+
+            '<div class="callout"><strong>Worth remembering</strong>' + App.esc(course.callout) + '</div>' +
+
+            '<p><strong>Key terms:</strong> ' + course.terms.map(App.esc).join(' · ') + '</p>' +
+
+            '<div class="quick-check">' +
+              '<div class="qc-label">' + UI.icon('sparkle') + 'Quick check</div>' +
+              '<p>Without looking back, explain ' + App.esc(lesson.title.toLowerCase()) + ' in one sentence.</p>' +
+              '<button class="btn btn-sm" type="button" id="reveal-btn">Show a good answer</button>' +
+              '<div class="reveal-answer" id="reveal-answer"><strong>A good answer:</strong> ' + App.esc(text.summary) + '</div>' +
+            '</div>' +
+
+            '<div class="lesson-pager">' +
+              (prevHref
+                ? '<a class="pager-link" href="' + prevHref + '">' + UI.icon('arrowLeft') + '<span class="pager-copy"><span class="pager-kicker">Previous</span><span class="pager-title">' + App.esc(serial.prev.title) + '</span></span></a>'
+                : '<span class="pager-link" aria-hidden="true"></span>') +
+              '<a class="pager-link next" href="' + nextHref + '"><span class="pager-copy"><span class="pager-kicker">' + (nextLesson ? 'Next lesson' : 'Back to') + '</span><span class="pager-title">' + App.esc(nextLesson ? nextLesson.title : course.title) + '</span></span>' + UI.icon('arrowRight') + '</a>' +
+            '</div>' +
+          '</div>' +
+        '</article>' +
+
+        '<aside class="lesson-rail">' +
+          '<div class="outline-card">' +
+            '<div class="rail-heading">Course outline</div>' +
+            '<div class="outline-list" id="outline-list">' + outlineHtml() + '</div>' +
+          '</div>' +
+
+          '<div class="outline-card">' +
+            '<div class="rail-heading">Your note</div>' +
+            '<textarea class="lesson-note" id="lesson-note" placeholder="What clicked? Write it in your own words…" aria-label="Your note for this lesson">' + App.esc(notes[lesson.id] || '') + '</textarea>' +
+            '<div class="note-saved" id="note-saved">' + (notes[lesson.id] ? 'Saved to this lesson' : 'Saved automatically in this browser') + '</div>' +
+          '</div>' +
+
+          '<div class="outline-card">' +
+            '<div class="rail-heading">This course</div>' +
+            '<div class="rail-stat"><span>Course</span><strong style="text-align:right;max-width:150px;">' + App.esc(course.title) + '</strong></div>' +
+            '<div class="rail-stat"><span>Progress</span><strong>' + progress.pct + '%</strong></div>' +
+            '<div class="rail-stat"><span>Lessons done</span><strong>' + progress.done + ' of ' + progress.total + '</strong></div>' +
+            '<div class="progress thin" style="margin-top:8px;"><span style="width:' + progress.pct + '%"></span></div>' +
+            '<a class="btn btn-sm btn-block" href="course.html?id=' + encodeURIComponent(course.id) + '">Course overview</a>' +
+          '</div>' +
+        '</aside>' +
+      '</div>';
+
+    document.getElementById('reveal-btn').addEventListener('click', function () {
+      var answer = document.getElementById('reveal-answer');
+      var open = answer.classList.toggle('show');
+      this.textContent = open ? 'Hide answer' : 'Show a good answer';
+    });
+
+    document.getElementById('complete-btn').addEventListener('click', toggleComplete);
+
+    var note = document.getElementById('lesson-note');
+    var saved = document.getElementById('note-saved');
+    var timer = null;
+    note.addEventListener('input', function () {
+      clearTimeout(timer);
+      saved.textContent = 'Saving…';
+      saved.classList.remove('ok');
+      timer = setTimeout(function () {
+        Store.data.lessonNotes[lesson.id] = note.value;
+        Store.save();
+        saved.textContent = 'Saved just now';
+        saved.classList.add('ok');
+      }, 450);
+    });
+  }
+
+  function toggleComplete() {
+    isDone = !isDone;
+    if (isDone) {
+      Store.data.lessons[lesson.id] = { done: true, at: new Date().toISOString() };
+      Store.addActivity(lesson.mins);
+    } else {
+      delete Store.data.lessons[lesson.id];
+    }
+    Store.save();
+    var actions = document.getElementById('lesson-actions');
+    if (actions) actions.innerHTML = actionButton();
+    var button = document.getElementById('complete-btn');
+    if (button) button.addEventListener('click', toggleComplete);
+    document.getElementById('outline-list').innerHTML = outlineHtml();
+    UI.toast(isDone ? 'Lesson complete. One less thing to carry.' : 'Marked as not finished.');
+  }
+
+  render();
+  UI.hydrateIcons();
+</script>
+</body>
+</html>

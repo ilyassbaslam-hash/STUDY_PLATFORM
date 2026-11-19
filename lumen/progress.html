@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Progress — Lumen</title>
+  <meta name="description" content="See what is sticking, and where to spend the next session.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="progress">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Progress</h1>
+          <p class="page-sub" id="progress-sub"></p>
+        </div>
+        <div class="page-actions">
+          <a class="btn" href="planner.html"><span data-icon="calendar"></span> Plan a session</a>
+          <a class="btn btn-primary" href="study.html" id="review-link">Review cards <span data-icon="arrowRight"></span></a>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="progress-stats"></div>
+
+      <div class="progress-grid">
+        <div class="progress-main">
+
+          <section class="card card-pad">
+            <div class="card-head">
+              <div>
+                <h2>Study activity</h2>
+                <span class="muted">The last seven days</span>
+              </div>
+              <div class="week-total" id="activity-total"></div>
+            </div>
+            <div class="activity-chart" id="activity-chart" aria-label="Minutes studied each day this week"></div>
+            <div class="activity-chart-legend">
+              <span id="activity-legend"></span>
+              <span id="activity-goal"></span>
+            </div>
+          </section>
+
+          <section class="card card-pad">
+            <div class="card-head">
+              <div>
+                <h2>Consistency</h2>
+                <span class="muted">Every day you opened Lumen, over the last 18 weeks</span>
+              </div>
+              <span class="badge badge-outline" id="heat-days"></span>
+            </div>
+            <div class="heatmap" id="heatmap" role="img" aria-label="Study activity heatmap"></div>
+            <div class="heatmap-legend">
+              <span>Less</span>
+              <span class="heat-cell" data-level="0"></span>
+              <span class="heat-cell" data-level="1"></span>
+              <span class="heat-cell" data-level="2"></span>
+              <span class="heat-cell" data-level="3"></span>
+              <span class="heat-cell" data-level="4"></span>
+              <span>More</span>
+            </div>
+          </section>
+
+          <section class="card card-pad">
+            <div class="card-head">
+              <div>
+                <h2>Course progress</h2>
+                <span class="muted">Lessons completed in each course</span>
+              </div>
+              <a class="link-arrow" href="courses.html">All courses <span data-icon="arrowRight"></span></a>
+            </div>
+            <div id="course-progress"></div>
+          </section>
+
+        </div>
+
+        <aside class="progress-side">
+
+          <section class="card card-pad" id="streak-card"></section>
+
+          <section class="card card-pad">
+            <div class="card-head">
+              <div>
+                <h2>Quiz results</h2>
+                <span class="muted">Best score per quiz</span>
+              </div>
+              <a class="link-arrow" href="quizzes.html">All quizzes <span data-icon="arrowRight"></span></a>
+            </div>
+            <div id="quiz-results"></div>
+          </section>
+
+          <section class="card card-pad" id="next-card"></section>
+
+        </aside>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'progress' });
+
+  var profile = Store.data.profile;
+  var stats = App.overallStats();
+  var week = App.last7();
+  var weekMinutes = stats.weekMinutes;
+  var goal = Number(profile.dailyMinutes) || 45;
+
+  /* ----- Heading ---------------------------------------------- */
+  var bestQuizCount = DB.quizzes.filter(function (quiz) { return App.quizStats(quiz.id); }).length;
+  document.getElementById('progress-sub').textContent =
+    'A calm look at the work so far — ' + stats.lessonsDone + ' of ' + stats.lessonsTotal + ' lessons, ' +
+    stats.cardsKnown + ' of ' + stats.cardsTotal + ' cards, and ' + bestQuizCount + ' quiz' +
+    (bestQuizCount === 1 ? '' : 'zes') + ' attempted.';
+
+  var next = App.continueTarget();
+  var nextDeck = App.allDecks().slice().sort(function (a, b) {
+    var pa = App.deckProgress(a);
+    var pb = App.deckProgress(b);
+    return (pb.total - pb.known) - (pa.total - pa.known);
+  })[0];
+  document.getElementById('review-link').href = nextDeck
+    ? 'study.html?deck=' + encodeURIComponent(nextDeck.id)
+    : 'flashcards.html';
+
+  /* ----- Stats ------------------------------------------------ */
+  function statCard(iconName, label, value, unit, sub) {
+    return '<article class="stat-card">' +
+      '<div class="stat-top"><span class="stat-label">' + label + '</span>' + UI.icon(iconName) + '</div>' +
+      '<div class="stat-value">' + value + (unit ? '<small>' + unit + '</small>' : '') + '</div>' +
+      '<div class="stat-sub">' + sub + '</div>' +
+      '</article>';
+  }
+
+  var previousMinutes = 0;
+  for (var i = 7; i <= 13; i++) {
+    var d = new Date();
+    d.setDate(d.getDate() - i);
+    previousMinutes += App.getActivity(App.dateKey(d));
+  }
+  var delta = previousMinutes ? Math.round(((weekMinutes - previousMinutes) / previousMinutes) * 100) : 0;
+
+  var quizAverage = stats.quizAverage;
+  document.getElementById('progress-stats').innerHTML =
+    statCard('book', 'Lessons finished', String(stats.lessonsDone), 'of ' + stats.lessonsTotal,
+      Math.round((stats.lessonsDone / stats.lessonsTotal) * 100) + '% of the curriculum') +
+    statCard('cards', 'Cards mastered', String(stats.cardsKnown), 'of ' + stats.cardsTotal,
+      (stats.cardsTotal - stats.cardsKnown) + ' still waiting') +
+    statCard('award', 'Quiz average', bestQuizCount ? quizAverage + '%' : '—', bestQuizCount ? '' : '',
+      bestQuizCount ? 'Across ' + bestQuizCount + ' quiz' + (bestQuizCount === 1 ? '' : 'zes') : 'No quizzes taken yet') +
+    statCard('clock', 'This week', App.formatMinutes(weekMinutes), '',
+      delta > 0 ? '<span class="delta-up">+' + delta + '%</span>&nbsp;from last week'
+        : delta < 0 ? Math.abs(delta) + '% quieter than last week' : 'Right about last week');
+
+  /* ----- Weekly activity -------------------------------------- */
+  var weekMax = Math.max.apply(null, week.map(function (day) { return day.minutes; }).concat([1]));
+  document.getElementById('activity-chart').innerHTML = week.map(function (day) {
+    var height = Math.max(4, Math.round((day.minutes / weekMax) * 100));
+    return '<div class="activity-bar' + (day.today ? ' today' : '') + '">' +
+      '<div class="activity-bar-track">' +
+        '<div class="activity-bar-fill' + (day.today ? ' today' : '') + '" style="height:' + height + '%" title="' +
+          (day.minutes ? day.minutes + ' min' : 'No study') + ' · ' + day.fullLabel + '"></div>' +
+      '</div>' +
+      '<span class="activity-bar-label">' + day.label + '</span>' +
+    '</div>';
+  }).join('');
+
+  var activeDays = week.filter(function (day) { return day.minutes > 0; }).length;
+  document.getElementById('activity-total').innerHTML =
+    App.formatMinutes(weekMinutes).replace(/(\d+)(m|h)/g, '$1<small>$2</small>');
+  document.getElementById('activity-legend').textContent =
+    activeDays + ' active day' + (activeDays === 1 ? '' : 's') + ' · ' +
+    Math.round(weekMinutes / Math.max(1, activeDays)) + ' min on average';
+  document.getElementById('activity-goal').textContent = 'Daily goal: ' + goal + ' min';
+
+  /* ----- Heatmap ---------------------------------------------- */
+  var levelFor = function (minutes) {
+    if (!minutes) return 0;
+    if (minutes < 20) return 1;
+    if (minutes < 40) return 2;
+    if (minutes < 65) return 3;
+    return 4;
+  };
+
+  var today = new Date();
+  var weekday = (today.getDay() + 6) % 7;
+  var start = new Date(today);
+  start.setDate(today.getDate() - weekday - 17 * 7);
+  start.setHours(0, 0, 0, 0);
+
+  var cells = [];
+  var studiedDays = 0;
+  for (var c = 0; c < 18 * 7; c++) {
+    var day = new Date(start);
+    day.setDate(start.getDate() + c);
+    var minutes = App.getActivity(App.dateKey(day));
+    if (minutes > 0) studiedDays++;
+    var future = day > today;
+    cells.push('<span class="heat-cell" data-level="' + (future ? 0 : levelFor(minutes)) + '"' +
+      (future ? ' style="opacity:.35"' : '') +
+      ' title="' + day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+      ' · ' + (future ? 'ahead' : minutes ? minutes + ' min' : 'no study') + '"></span>');
+  }
+  document.getElementById('heatmap').innerHTML = cells.join('');
+  document.getElementById('heat-days').textContent = studiedDays + ' active days';
+
+  /* ----- Course progress -------------------------------------- */
+  document.getElementById('course-progress').innerHTML = DB.courses.map(function (course) {
+    var progress = App.courseProgress(course);
+    return '<a class="progress-course" href="course.html?id=' + encodeURIComponent(course.id) + '">' +
+      '<span class="tone-tile" data-tone="' + course.tone + '">' + UI.icon('book') + '</span>' +
+      '<span class="progress-course-info">' +
+        '<span class="progress-course-title">' + App.esc(course.title) + '</span>' +
+        '<span class="progress-course-meta">' + progress.done + ' of ' + progress.total + ' lessons · ' + App.esc(course.subject) + '</span>' +
+      '</span>' +
+      '<div class="progress' + (progress.pct === 100 ? ' green' : '') + '"><span style="width:' + progress.pct + '%"></span></div>' +
+      '<span class="progress-course-pct">' + progress.pct + '%</span>' +
+    '</a>';
+  }).join('');
+
+  /* ----- Streak & weekly goal --------------------------------- */
+  var bestDay = week.reduce(function (best, day) { return day.minutes > best.minutes ? day : best; }, { minutes: 0, fullLabel: '—' });
+  var weeklyGoal = goal * 7;
+  var goalPct = Math.min(100, Math.round((weekMinutes / weeklyGoal) * 100));
+  document.getElementById('streak-card').innerHTML =
+    '<div class="row gap-12" style="margin-bottom:14px;">' +
+      '<span class="icon-chip amber" data-icon="flame" style="width:40px;height:40px;border-radius:11px;"></span>' +
+      '<div><div class="stat-value" style="margin-top:0;">' + (profile.streak || 0) + '<small>days</small></div>' +
+      '<span class="muted tiny">current streak</span></div>' +
+    '</div>' +
+    '<div class="deck-progress-top"><span>Weekly goal</span><strong>' + App.formatMinutes(weekMinutes) + ' of ' + App.formatMinutes(weeklyGoal) + '</strong></div>' +
+    '<div class="progress' + (goalPct >= 100 ? ' green' : '') + '"><span style="width:' + goalPct + '%"></span></div>' +
+    '<p class="muted tiny" style="margin-top:9px;line-height:1.55;">' +
+      (goalPct >= 100
+        ? 'Goal met. The rest of the week is a bonus.'
+        : goalPct >= 50
+          ? 'More than halfway there. One short session should do it.'
+          : 'A small session today would put a marker on the map.') +
+    '</p>' +
+    '<div class="card-foot" style="margin-top:12px;padding-top:10px;font-size:10px;">' +
+      '<span>Best day this week</span><span class="strong">' + (bestDay.minutes ? bestDay.fullLabel + ' · ' + App.formatMinutes(bestDay.minutes) : '—') + '</span>' +
+    '</div>';
+
+  /* ----- Quiz results ----------------------------------------- */
+  var results = DB.quizzes.map(function (quiz) {
+    return { quiz: quiz, record: App.quizStats(quiz.id) };
+  }).filter(function (item) { return item.record; }).sort(function (a, b) {
+    return new Date(b.record.lastAt || 0) - new Date(a.record.lastAt || 0);
+  });
+
+  var resultsWrap = document.getElementById('quiz-results');
+  if (!results.length) {
+    resultsWrap.innerHTML = '<div class="empty" style="padding:18px 8px 8px;">' +
+      '<span class="empty-icon" data-icon="quiz"></span>' +
+      '<h3>No scores yet</h3>' +
+      '<p>Take a short quiz to start the picture.</p>' +
+      '<a class="btn btn-primary btn-sm" href="quizzes.html">Browse quizzes</a>' +
+    '</div>';
+  } else {
+    resultsWrap.innerHTML = results.map(function (item) {
+      var score = item.record.best;
+      var cls = score >= 80 ? 'good' : score < 60 ? 'low' : '';
+      return '<a class="result-row" href="quiz.html?id=' + encodeURIComponent(item.quiz.id) + '">' +
+        '<span class="score-pill ' + cls + '">' + score + '%</span>' +
+        '<span class="result-row-title">' + App.esc(item.quiz.title) + '</span>' +
+        '<span class="result-row-date">' + App.relativeDate(item.record.lastAt) + '</span>' +
+      '</a>';
+    }).join('');
+  }
+
+  /* ----- Next lesson ------------------------------------------ */
+  document.getElementById('next-card').innerHTML =
+    '<div class="deck-meta-label">Next lesson</div>' +
+    '<div class="resume-title" style="margin-top:6px;">' + App.esc(next.lesson.title) + '</div>' +
+    '<p class="muted tiny" style="margin-top:4px;line-height:1.6;">' +
+      App.esc(next.course.title) + ' · ' + App.esc(next.lesson.moduleTitle) + ' · ' + next.lesson.mins + ' min' +
+    '</p>' +
+    '<a class="btn btn-primary btn-block" style="margin-top:14px;" href="lesson.html?course=' +
+      encodeURIComponent(next.course.id) + '&lesson=' + encodeURIComponent(next.lesson.id) + '">Continue ' + UI.icon('arrowRight') + '</a>' +
+    '<a class="link-arrow" style="margin-top:12px;font-size:10.5px;justify-content:center;width:100%;" href="courses.html">See all courses <span data-icon="arrowRight"></span></a>';
+
+  UI.hydrateIcons();
+</script>
+</body>
+</html>

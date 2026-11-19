@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Course — Lumen</title>
+  <meta name="description" content="Course overview, modules, and lessons in Lumen.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="course">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="page-head" style="margin-bottom:14px;">
+        <div>
+          <a class="link-arrow" href="courses.html"><span data-icon="arrowLeft"></span> All courses</a>
+        </div>
+        <div class="page-actions">
+          <a class="btn" href="notes.html" id="course-notes-link"><span data-icon="note"></span> Course notes</a>
+        </div>
+      </div>
+
+      <div id="course-content"></div>
+
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'course' });
+
+  var course = App.getCourse(App.param('id'));
+
+  if (!course) {
+    document.getElementById('course-content').innerHTML =
+      '<div class="empty" style="margin-top:40px;">' +
+        '<span class="empty-icon" data-icon="book"></span>' +
+        '<h3>Course not found</h3>' +
+        '<p>That course may have moved, or the link is out of date.</p>' +
+        '<a class="btn btn-primary btn-sm" href="courses.html">Browse courses</a>' +
+      '</div>';
+    UI.hydrateIcons();
+  } else {
+    document.title = course.title + ' — Lumen';
+    var notesLink = document.getElementById('course-notes-link');
+    if (notesLink) notesLink.href = 'notes.html?tag=' + encodeURIComponent(course.subject);
+
+    var lessons = App.courseLessons(course);
+    var progress = App.courseProgress(course);
+    var current = App.nextIncomplete(course) || lessons[0];
+    var currentHref = 'lesson.html?course=' + encodeURIComponent(course.id) + '&lesson=' + encodeURIComponent(current.id);
+    var noteCount = Store.data.notes.filter(function (note) { return note.tag === course.subject; }).length;
+    var courseDecks = App.allDecks().filter(function (deck) { return deck.subject === course.subject; });
+    var due = courseDecks.reduce(function (sum, deck) {
+      var deckStats = App.deckProgress(deck);
+      return sum + (deckStats.total - deckStats.known);
+    }, 0);
+
+    function moduleBlock(mod, moduleIndex) {
+      var modLessons = mod.lessons;
+      var modDone = modLessons.filter(function (lesson) { return Store.data.lessons[lesson.id] && Store.data.lessons[lesson.id].done; }).length;
+      var modPct = modLessons.length ? Math.round((modDone / modLessons.length) * 100) : 0;
+
+      var rows = modLessons.map(function (lesson, lessonIndex) {
+        var done = Store.data.lessons[lesson.id] && Store.data.lessons[lesson.id].done;
+        var isCurrent = lesson.id === current.id && !done;
+        var href = 'lesson.html?course=' + encodeURIComponent(course.id) + '&lesson=' + encodeURIComponent(lesson.id);
+        return '<a class="lesson-row' + (done ? ' done' : '') + (isCurrent ? ' current' : '') + '" href="' + href + '">' +
+          '<span class="lesson-status" aria-hidden="true"></span>' +
+          '<span class="lesson-name">' + (moduleIndex + 1) + '.' + (lessonIndex + 1) + ' &nbsp;' + App.esc(lesson.title) + '</span>' +
+          '<span class="lesson-mins">' + lesson.mins + ' min</span>' +
+          UI.icon('chevronRight') +
+        '</a>';
+      }).join('');
+
+      return '<section class="module">' +
+        '<div class="module-head">' +
+          '<div class="module-title"><span class="module-num">' + (moduleIndex + 1) + '</span>' + App.esc(mod.title) + '</div>' +
+          '<div class="module-progress"><div class="progress thin"><span style="width:' + modPct + '%"></span></div><span>' + modDone + '/' + modLessons.length + '</span></div>' +
+        '</div>' +
+        rows +
+      '</section>';
+    }
+
+    document.getElementById('course-content').innerHTML =
+
+      '<section class="course-banner">' +
+        '<div class="course-banner-cover" data-tone="' + course.tone + '">' + App.monogram(course) + '</div>' +
+        '<div class="course-banner-info">' +
+          '<span class="cover-subject">' + App.esc(course.subject) + ' · ' + App.esc(course.level) + '</span>' +
+          '<h1>' + App.esc(course.title) + '</h1>' +
+          '<p>' + App.esc(course.blurb) + '</p>' +
+          '<div class="course-meta-row">' +
+            '<span>' + UI.icon('book') + lessons.length + ' lessons</span>' +
+            '<span>' + UI.icon('layers') + course.modules.length + ' modules</span>' +
+            '<span>' + UI.icon('clock') + course.hours + ' hours</span>' +
+            '<span>' + UI.icon('chart') + progress.pct + '% complete</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="course-banner-side">' +
+          '<a class="btn btn-primary" href="' + currentHref + '">' + (progress.pct === 100 ? 'Review course' : progress.done ? 'Continue lesson' : 'Start course') + ' ' + UI.icon('arrowRight') + '</a>' +
+          '<a class="btn" href="' + (courseDecks[0] ? 'study.html?deck=' + encodeURIComponent(courseDecks[0].id) : 'flashcards.html') + '">Practice cards</a>' +
+        '</div>' +
+      '</section>' +
+
+      '<div class="course-layout">' +
+        '<div class="course-main">' +
+          '<div class="section-label"><h2>Course content</h2><span>' + lessons.length + ' lessons · ' + course.hours + 'h total</span></div>' +
+          course.modules.map(moduleBlock).join('') +
+          '<div class="card card-pad" style="margin-top:14px;">' +
+            '<div class="card-head"><h2>How to work through this course</h2></div>' +
+            '<p class="muted" style="font-size:11.5px;line-height:1.65;">Take one lesson at a time. After each lesson, pull the idea back out of memory with a flashcard or the quick check, then let the planner bring it around again later in the week.</p>' +
+          '</div>' +
+        '</div>' +
+
+        '<aside class="rail">' +
+          '<div class="rail-card">' +
+            '<div class="rail-heading">Your progress</div>' +
+            '<div class="rail-progress">' +
+              '<div class="ring-wrap">' + App.ring(progress.pct, { size: 62, stroke: 6 }) + '<div class="ring-center"><strong style="font-size:13px;">' + progress.pct + '%</strong></div></div>' +
+              '<div><h3>' + progress.done + ' of ' + progress.total + ' lessons</h3><p>' + (progress.done ? 'Keep the rhythm going.' : 'A fresh start.') + '</p></div>' +
+            '</div>' +
+            '<div class="rail-stat"><span>Lessons left</span><strong>' + (progress.total - progress.done) + '</strong></div>' +
+            '<div class="rail-stat"><span>Cards to review</span><strong>' + due + '</strong></div>' +
+            '<div class="rail-stat"><span>Your notes</span><strong>' + noteCount + '</strong></div>' +
+            '<a class="btn btn-primary btn-block btn-sm" href="' + currentHref + '">' + (progress.pct === 100 ? 'Review first lesson' : 'Open next lesson') + '</a>' +
+          '</div>' +
+
+          '<div class="rail-card">' +
+            '<div class="rail-heading">What you’ll learn</div>' +
+            course.keyIdeas.map(function (idea) {
+              return '<div class="objective">' + UI.icon('check') + '<span>' + App.esc(idea) + '</span></div>';
+            }).join('') +
+          '</div>' +
+
+          '<div class="rail-card">' +
+            '<div class="rail-heading">Key terms</div>' +
+            '<div class="rail-tags">' + course.terms.map(function (term) { return '<span class="chip">' + App.esc(term) + '</span>'; }).join('') + '</div>' +
+            '<p class="rail-note">Terms like these make good flashcards. Turn each one into a question, not just a definition.</p>' +
+            '<a class="btn btn-sm btn-block" href="' + (courseDecks[0] ? 'study.html?deck=' + encodeURIComponent(courseDecks[0].id) : 'flashcards.html') + '">' +
+              (courseDecks[0] ? 'Study this subject' : 'Browse decks') +
+            '</a>' +
+          '</div>' +
+        '</aside>' +
+      '</div>';
+
+    // The icon set does not include a layers glyph; fall back to book.
+    UI.hydrateIcons();
+  }
+</script>
+</body>
+</html>

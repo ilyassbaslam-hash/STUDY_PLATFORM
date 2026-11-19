@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — Lumen</title>
+  <meta name="description" content="Your Lumen study dashboard.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="dashboard">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title"><span id="greeting">Good afternoon</span>, <span id="first-name">Alex</span></h1>
+          <p class="page-sub"><span id="today-label"></span> · <span id="plan-count"></span></p>
+        </div>
+        <div class="page-actions">
+          <a class="btn" href="planner.html"><span data-icon="calendar"></span> Plan the week</a>
+          <a class="btn btn-primary" href="study.html?deck=cell-structures" id="quick-study">Quick study <span data-icon="arrowRight"></span></a>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="stats-grid"></div>
+
+      <div class="dash-grid">
+        <div class="dash-main">
+          <div>
+            <div class="section-title-row">
+              <h2>Pick up where you left off</h2>
+              <a class="link-arrow" href="courses.html">All courses <span data-icon="arrowRight"></span></a>
+            </div>
+            <div id="continue-card"></div>
+          </div>
+
+          <section class="card card-pad">
+            <div class="card-head">
+              <div>
+                <h2>Study activity</h2>
+                <span class="muted">Last 7 days</span>
+              </div>
+              <div class="week-total" id="week-total"></div>
+            </div>
+            <div class="week-bars" id="week-bars" aria-label="Study minutes over the last seven days"></div>
+            <div class="card-foot">
+              <span id="week-foot"></span>
+              <a class="link-arrow" href="progress.html">See progress <span data-icon="arrowRight"></span></a>
+            </div>
+          </section>
+
+          <section class="card card-pad">
+            <div class="card-head">
+              <div>
+                <h2>Course progress</h2>
+                <span class="muted">How far through each course</span>
+              </div>
+              <a class="link-arrow" href="courses.html">All courses <span data-icon="arrowRight"></span></a>
+            </div>
+            <div id="dash-courses"></div>
+          </section>
+        </div>
+
+        <aside class="dash-side">
+          <section class="card card-pad" id="goal-card"></section>
+
+          <section class="card card-pad">
+            <div class="card-head">
+              <h2>Today’s plan</h2>
+              <a class="link-arrow" href="planner.html"><span data-icon="calendar"></span> Planner</a>
+            </div>
+            <div class="task-list" id="today-tasks"></div>
+            <div class="card-foot" id="today-foot"></div>
+          </section>
+
+          <section class="card card-pad">
+            <div class="card-head">
+              <h2>Ready to review</h2>
+              <a class="link-arrow" href="flashcards.html">All decks <span data-icon="arrowRight"></span></a>
+            </div>
+            <div id="deck-list"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell();
+
+  var state = Store.data;
+  var profile = state.profile;
+  var firstName = (profile.name || 'there').split(' ')[0];
+  var todayTasks = App.todayTasks();
+  var undone = todayTasks.filter(function (t) { return !t.done; }).length;
+
+  document.getElementById('greeting').textContent = App.greeting();
+  document.getElementById('first-name').textContent = firstName;
+  document.getElementById('today-label').textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric'
+  });
+  document.getElementById('plan-count').textContent = undone
+    ? 'You have ' + undone + ' task' + (undone === 1 ? '' : 's') + ' left today.'
+    : 'Your plate is clear today.';
+
+  /* ----- Stats ------------------------------------------------ */
+  var stats = App.overallStats();
+  var due = stats.cardsTotal - stats.cardsKnown;
+  var previousMinutes = 0;
+  for (var i = 7; i <= 13; i++) {
+    var d = new Date();
+    d.setDate(d.getDate() - i);
+    previousMinutes += App.getActivity(App.dateKey(d));
+  }
+  var delta = previousMinutes ? Math.round(((stats.weekMinutes - previousMinutes) / previousMinutes) * 100) : 0;
+
+  function statCard(iconName, label, value, unit, sub) {
+    return '<article class="stat-card">' +
+      '<div class="stat-top"><span class="stat-label">' + label + '</span>' + UI.icon(iconName) + '</div>' +
+      '<div class="stat-value">' + value + (unit ? '<small>' + unit + '</small>' : '') + '</div>' +
+      '<div class="stat-sub">' + sub + '</div>' +
+      '</article>';
+  }
+
+  document.getElementById('stats-grid').innerHTML =
+    statCard('flame', 'Day streak', String(stats.streak), 'days', 'A little every day counts.') +
+    statCard('clock', 'This week', App.formatMinutes(stats.weekMinutes), '', (delta > 0
+      ? '<span class="delta-up">+' + delta + '%</span>&nbsp;from last week'
+      : delta < 0 ? delta + '% from last week' : 'About the same as last week')) +
+    statCard('book', 'Lessons finished', String(stats.lessonsDone), 'of ' + stats.lessonsTotal,
+      (stats.lessonsTotal ? Math.round((stats.lessonsDone / stats.lessonsTotal) * 100) : 0) + '% of the curriculum') +
+    statCard('cards', 'Cards mastered', String(stats.cardsKnown), 'of ' + stats.cardsTotal,
+      due + ' card' + (due === 1 ? '' : 's') + ' to review');
+
+  /* ----- Continue learning ------------------------------------ */
+  var target = App.continueTarget();
+  var targetCourse = target.course;
+  var targetLesson = target.lesson;
+  var targetProgress = App.courseProgress(targetCourse);
+  var serial = App.serialLesson(targetCourse, targetLesson.id);
+  var lessonHref = 'lesson.html?course=' + encodeURIComponent(targetCourse.id) + '&lesson=' + encodeURIComponent(targetLesson.id);
+
+  document.getElementById('continue-card').innerHTML =
+    '<a class="resume-card" href="' + lessonHref + '">' +
+      '<div class="resume-cover" data-tone="' + targetCourse.tone + '"><span class="serif">' + App.monogram(targetCourse) + '</span></div>' +
+      '<div class="resume-body">' +
+        '<div class="resume-kicker"><span class="dot"></span>' + App.esc(targetCourse.subject) + ' · ' + App.esc(targetLesson.moduleTitle) + '</div>' +
+        '<div class="resume-title">' + App.esc(targetLesson.title) + '</div>' +
+        '<div class="resume-sub">Lesson ' + (serial.index + 1) + ' of ' + serial.lessons.length + ' · ' + targetLesson.mins + ' min · ' + targetCourse.title + '</div>' +
+        '<div class="resume-progress">' +
+          '<div class="progress"><span style="width:' + targetProgress.pct + '%"></span></div>' +
+          '<span>' + targetProgress.pct + '% complete</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="resume-cta"><span class="btn btn-primary">Continue ' + UI.icon('arrowRight') + '</span></div>' +
+    '</a>';
+
+  /* ----- Weekly chart ----------------------------------------- */
+  var week = App.last7();
+  var weekMax = Math.max.apply(null, week.map(function (day) { return day.minutes; }).concat([1]));
+  document.getElementById('week-bars').innerHTML = week.map(function (day) {
+    var height = Math.max(4, Math.round((day.minutes / weekMax) * 100));
+    var cls = day.today ? 'today' : day.minutes > 0 ? 'has' : '';
+    return '<div class="week-bar' + (day.today ? ' today' : '') + '">' +
+      '<div class="week-bar-track"><div class="week-bar-fill ' + cls + '" style="height:' + height + '%" title="' + day.minutes + ' minutes · ' + day.fullLabel + '"></div></div>' +
+      '<span class="week-bar-label">' + day.label + '</span>' +
+      '</div>';
+  }).join('');
+  document.getElementById('week-total').innerHTML = App.formatMinutes(stats.weekMinutes) + '<small> total</small>';
+  var activeDays = week.filter(function (day) { return day.minutes > 0; }).length;
+  document.getElementById('week-foot').textContent = activeDays + ' active day' + (activeDays === 1 ? '' : 's') + ' this week';
+
+  /* ----- Course progress -------------------------------------- */
+  document.getElementById('dash-courses').innerHTML = DB.courses.map(function (course) {
+    var progress = App.courseProgress(course);
+    return '<a class="progress-course" href="course.html?id=' + encodeURIComponent(course.id) + '">' +
+      '<span class="tone-tile" data-tone="' + course.tone + '">' + UI.icon('book') + '</span>' +
+      '<span class="progress-course-info">' +
+        '<span class="progress-course-title">' + App.esc(course.title) + '</span>' +
+        '<span class="progress-course-meta">' + progress.done + ' of ' + progress.total + ' lessons · ' + App.esc(course.subject) + '</span>' +
+      '</span>' +
+      '<div class="progress' + (progress.pct === 100 ? ' green' : '') + '"><span style="width:' + progress.pct + '%"></span></div>' +
+      '<span class="progress-course-pct">' + progress.pct + '%</span>' +
+    '</a>';
+  }).join('');
+
+  /* ----- Daily goal ------------------------------------------- */
+  var goal = Number(profile.dailyMinutes) || 45;
+  var todayMinutes = App.getActivity(App.todayKey());
+  var goalPct = Math.min(100, Math.round((todayMinutes / goal) * 100));
+  var remaining = Math.max(0, goal - todayMinutes);
+  document.getElementById('goal-card').innerHTML =
+    '<div class="card-head"><h2>Daily goal</h2><span class="muted">' + goal + ' min</span></div>' +
+    '<div class="goal-flex">' +
+      '<div class="ring-wrap goal-ring">' + App.ring(goalPct, { size: 86, stroke: 7 }) +
+        '<div class="ring-center"><strong>' + goalPct + '%</strong><span>of goal</span></div>' +
+      '</div>' +
+      '<div class="goal-copy">' +
+        '<h3>' + (remaining === 0 ? 'Goal met — nicely done.' : App.formatMinutes(todayMinutes) + ' focused so far.') + '</h3>' +
+        '<p>' + (remaining === 0 ? 'Anything else today is a bonus.' : remaining + ' minutes left to hit today’s target.') + '</p>' +
+        '<span class="badge ' + (remaining === 0 ? 'badge-green' : 'badge-accent') + '">' + (remaining === 0 ? 'On track' : 'In progress') + '</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="card-foot"><span>' + stats.streak + ' day streak</span><a class="link-arrow" href="progress.html">See trends ' + UI.icon('arrowRight') + '</a></div>';
+
+  /* ----- Today's plan ----------------------------------------- */
+  function renderTasks() {
+    var tasks = App.todayTasks();
+    var wrap = document.getElementById('today-tasks');
+    if (!tasks.length) {
+      wrap.innerHTML = '<div class="empty" style="padding:22px 10px 14px;"><span class="empty-icon" data-icon="calendar"></span><h3>Nothing planned</h3><p>Add one small thing for today in your planner.</p><a class="btn btn-sm" href="planner.html">Open planner</a></div>';
+      UI.hydrateIcons(wrap);
+    } else {
+      wrap.innerHTML = tasks.map(function (task) {
+        return '<label class="task-row' + (task.done ? ' done' : '') + '">' +
+          '<span class="check"><input type="checkbox" data-task="' + task.id + '"' + (task.done ? ' checked' : '') + '><span class="check-box"></span></span>' +
+          '<span class="task-body">' +
+            '<span class="task-title">' + App.esc(task.title) + '</span>' +
+            '<span class="task-meta">' + App.esc(task.time) + ' · ' + App.esc(task.course) + '</span>' +
+          '</span>' +
+          '</label>';
+      }).join('');
+    }
+    var doneCount = tasks.filter(function (t) { return t.done; }).length;
+    document.getElementById('today-foot').textContent = tasks.length
+      ? doneCount + ' of ' + tasks.length + ' done'
+      : 'A clear day is still a plan.';
+    var left = tasks.filter(function (t) { return !t.done; }).length;
+    document.getElementById('plan-count').textContent = left
+      ? 'You have ' + left + ' task' + (left === 1 ? '' : 's') + ' left today.'
+      : 'Your plate is clear today.';
+  }
+  renderTasks();
+
+  document.getElementById('today-tasks').addEventListener('change', function (event) {
+    var input = event.target.closest('[data-task]');
+    if (!input) return;
+    var task = state.tasks.find(function (t) { return t.id === input.dataset.task; });
+    if (!task) return;
+    task.done = input.checked;
+    Store.save();
+    renderTasks();
+    if (task.done) UI.toast('One less thing for today.');
+  });
+
+  /* ----- Ready to review -------------------------------------- */
+  var decks = App.allDecks().map(function (deck) {
+    return { deck: deck, progress: App.deckProgress(deck), due: App.deckProgress(deck).total - App.deckProgress(deck).known };
+  }).sort(function (a, b) { return b.due - a.due; });
+  var deckWrap = document.getElementById('deck-list');
+  if (!decks.length) {
+    deckWrap.innerHTML = '<div class="empty" style="padding:16px 8px;"><p>No decks yet.</p><a class="btn btn-sm" href="flashcards.html">Create a deck</a></div>';
+  } else {
+    deckWrap.innerHTML = decks.slice(0, 3).map(function (item) {
+      return '<a class="mini-deck" href="study.html?deck=' + encodeURIComponent(item.deck.id) + '">' +
+        '<span class="tone-tile" data-tone="' + item.deck.tone + '">' + UI.icon('cards') + '</span>' +
+        '<span class="mini-deck-info">' +
+          '<span class="mini-deck-title">' + App.esc(item.deck.title) + '</span>' +
+          '<span class="mini-deck-meta">' + (item.due ? item.due + ' card' + (item.due === 1 ? '' : 's') + ' to review' : 'All caught up') + ' · ' + App.esc(item.deck.subject) + '</span>' +
+        '</span>' +
+        '<span class="icon-btn" aria-hidden="true">' + UI.icon('play') + '</span>' +
+      '</a>';
+    }).join('');
+    var totalDue = decks.reduce(function (sum, item) { return sum + item.due; }, 0);
+    deckWrap.insertAdjacentHTML('beforeend', '<div class="card-foot"><span>' + totalDue + ' card' + (totalDue === 1 ? '' : 's') + ' waiting</span><a class="link-arrow" href="flashcards.html">Review ' + UI.icon('arrowRight') + '</a></div>');
+  }
+
+  /* ----- Quick study ------------------------------------------ */
+  var bestDeck = decks[0];
+  if (bestDeck) {
+    document.getElementById('quick-study').href = 'study.html?deck=' + encodeURIComponent(bestDeck.deck.id);
+  } else {
+    document.getElementById('quick-study').href = lessonHref;
+  }
+
+  // Icons inside content rendered after UI.init.
+  UI.hydrateIcons();
+</script>
+</body>
+</html>

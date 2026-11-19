@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flashcards — Lumen</title>
+  <meta name="description" content="Review what you know and bring back what you don't.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="flashcards">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Flashcards</h1>
+          <p class="page-sub" id="flashcards-sub"></p>
+        </div>
+        <div class="page-actions">
+          <button class="btn" type="button" id="new-deck"><span data-icon="plus"></span> New deck</button>
+          <a class="btn btn-primary" href="study.html" id="study-all">Review due <span data-icon="arrowRight"></span></a>
+        </div>
+      </div>
+
+      <div id="review-banner"></div>
+
+      <div class="section-title-row">
+        <h2>Your decks <span class="badge badge-outline" id="deck-count"></span></h2>
+        <span class="muted">Sorted by what needs review</span>
+      </div>
+
+      <div class="decks-grid" id="decks-grid"></div>
+
+      <div class="card card-pad" style="margin-top:18px;">
+        <div class="card-head">
+          <h2>A better way to review</h2>
+          <span class="muted">Three small habits</span>
+        </div>
+        <div class="form-grid" style="gap:18px;margin-top:4px;">
+          <div class="objective" style="align-items:flex-start;"><span class="icon-chip green" data-icon="target"></span><span><strong>Answer before you flip.</strong><br><span class="muted tiny">Even a wrong guess makes the correct answer stick better than rereading.</span></span></div>
+          <div class="objective" style="align-items:flex-start;"><span class="icon-chip amber" data-icon="refresh"></span><span><strong>Let “Again” mean again.</strong><br><span class="muted tiny">Cards you mark again come back sooner. That is the system working.</span></span></div>
+          <div class="objective" style="align-items:flex-start;"><span class="icon-chip lavender" data-icon="clock"></span><span><strong>Keep sessions short.</strong><br><span class="muted tiny">Ten focused minutes beats an hour of flipping without thinking.</span></span></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<dialog class="modal" id="deck-dialog" aria-labelledby="deck-dialog-title">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <div>
+        <h2 id="deck-dialog-title">Create a deck</h2>
+        <p>Two columns, one card per line. Keep the front short and the back clear.</p>
+      </div>
+      <button class="icon-btn" type="button" data-close aria-label="Close">✕</button>
+    </div>
+    <form id="deck-form">
+      <div class="modal-body form-stack">
+        <div class="field">
+          <label class="label" for="deck-title">Deck name</label>
+          <input class="input" id="deck-title" name="title" type="text" placeholder="e.g. Spanish irregular verbs" required maxlength="60">
+        </div>
+        <div class="field">
+          <label class="label" for="deck-subject">Subject</label>
+          <select class="select" id="deck-subject" name="subject">
+            <option>Biology</option>
+            <option>Mathematics</option>
+            <option>Psychology</option>
+            <option>History</option>
+            <option>Chemistry</option>
+            <option>Computer science</option>
+            <option>Languages</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="deck-cards">Cards <span class="hint">front | back</span></label>
+          <textarea class="textarea" id="deck-cards" name="cards" rows="6" required placeholder="Mitochondria | The organelle that makes most of the cell's ATP&#10;Plasma membrane | Controls what enters and leaves the cell"></textarea>
+          <span class="field-hint">One card per line, separated by a vertical bar. You can add more later by making a new deck.</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" type="button" data-close>Cancel</button>
+        <button class="btn btn-primary" type="submit">Create deck</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'flashcards' });
+
+  var grid = document.getElementById('decks-grid');
+  var banner = document.getElementById('review-banner');
+  var tones = ['mint', 'sky', 'peach', 'lavender', 'sand'];
+
+  function deckStats() {
+    return App.allDecks().map(function (deck) {
+      var progress = App.deckProgress(deck);
+      var record = Store.data.cards[deck.id] || {};
+      return {
+        deck: deck,
+        known: progress.known,
+        total: progress.total,
+        pct: progress.pct,
+        due: progress.total - progress.known,
+        lastStudied: record.lastStudied || deck.lastStudied || null
+      };
+    }).sort(function (a, b) { return b.due - a.due || a.deck.title.localeCompare(b.deck.title); });
+  }
+
+  function render() {
+    var decks = deckStats();
+    var totalCards = decks.reduce(function (sum, item) { return sum + item.total; }, 0);
+    var totalKnown = decks.reduce(function (sum, item) { return sum + item.known; }, 0);
+    var totalDue = totalCards - totalKnown;
+    var customCount = decks.filter(function (item) { return item.deck.custom; }).length;
+
+    document.getElementById('flashcards-sub').textContent =
+      decks.length + ' deck' + (decks.length === 1 ? '' : 's') +
+      ' · ' + totalKnown + ' of ' + totalCards + ' cards mastered' +
+      (totalDue ? ' · ' + totalDue + ' due' : ' · all caught up');
+
+    document.getElementById('deck-count').textContent = decks.length;
+
+    if (totalDue) {
+      var top = decks.slice(0, 3);
+      banner.innerHTML =
+        '<div class="deck-review-banner">' +
+          '<div class="glyph-stack">' +
+            top.map(function (item) {
+              return '<span class="deck-glyph" data-tone="' + item.deck.tone + '">' + UI.icon('cards') + '</span>';
+            }).join('') +
+          '</div>' +
+          '<div class="copy">' +
+            '<h2>' + totalDue + ' card' + (totalDue === 1 ? '' : 's') + ' ready for review</h2>' +
+            '<p>Start with “' + App.esc(decks[0].deck.title) + '” — the deck with the most waiting.</p>' +
+          '</div>' +
+          '<a class="btn btn-primary" href="study.html?deck=' + encodeURIComponent(decks[0].deck.id) + '">Start review ' + UI.icon('arrowRight') + '</a>' +
+        '</div>';
+      document.getElementById('study-all').href = 'study.html?deck=' + encodeURIComponent(decks[0].deck.id);
+    } else {
+      banner.innerHTML =
+        '<div class="deck-review-banner">' +
+          '<span class="icon-chip green" data-icon="check"></span>' +
+          '<div class="copy"><h2>Everything is reviewed</h2><p>No cards are waiting. You can still run through a deck to keep it fresh.</p></div>' +
+          '<a class="btn" href="study.html' + (decks[0] ? '?deck=' + encodeURIComponent(decks[0].deck.id) : '') + '">Study anyway</a>' +
+        '</div>';
+      document.getElementById('study-all').href = 'study.html' + (decks[0] ? '?deck=' + encodeURIComponent(decks[0].deck.id) : '');
+    }
+
+    grid.innerHTML = decks.map(function (item) {
+      var dueBadge = item.due
+        ? '<span class="badge badge-amber">' + item.due + ' due</span>'
+        : '<span class="badge badge-green">' + UI.icon('check') + ' Mastered</span>';
+      return '<article class="deck-card' + (item.deck.custom ? ' is-custom' : '') + '">' +
+        '<div class="deck-top">' +
+          '<span class="deck-glyph" data-tone="' + item.deck.tone + '">' + UI.icon('cards') + '</span>' +
+          dueBadge +
+        '</div>' +
+        '<div class="deck-meta-label" style="margin-top:12px;">' + App.esc(item.deck.subject) + (item.deck.custom ? ' · custom' : '') + '</div>' +
+        '<h2 class="deck-title">' + App.esc(item.deck.title) + '</h2>' +
+        '<p class="deck-desc">' + App.esc(item.deck.description) + '</p>' +
+        '<div class="deck-progress">' +
+          '<div class="deck-progress-top"><span>Mastery</span><strong>' + item.pct + '%</strong></div>' +
+          '<div class="progress' + (item.pct === 100 ? ' green' : '') + '"><span style="width:' + item.pct + '%"></span></div>' +
+        '</div>' +
+        '<div class="deck-foot">' +
+          '<span class="muted">' + item.known + ' of ' + item.total + ' known</span>' +
+          '<span class="row gap-6">' +
+            (item.deck.custom ? '<button class="icon-btn sm" type="button" data-delete-deck="' + item.deck.id + '" aria-label="Delete deck" title="Delete deck">' + UI.icon('trash') + '</button>' : '') +
+            '<a class="btn" href="study.html?deck=' + encodeURIComponent(item.deck.id) + '">Study ' + UI.icon('arrowRight') + '</a>' +
+          '</span>' +
+        '</div>' +
+      '</article>';
+    }).join('');
+
+    if (customCount > 6) {
+      document.getElementById('flashcards-sub').textContent += ' · ' + customCount + ' custom';
+    }
+  }
+
+  document.getElementById('new-deck').addEventListener('click', function () {
+    UI.openDialog('deck-dialog');
+  });
+
+  document.getElementById('deck-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var title = document.getElementById('deck-title').value.trim();
+    var subject = document.getElementById('deck-subject').value;
+    var raw = document.getElementById('deck-cards').value;
+    var cards = raw.split(/\r?\n/).map(function (line) {
+      var parts = line.split('|');
+      if (parts.length < 2) return null;
+      var front = parts[0].trim();
+      var back = parts.slice(1).join('|').trim();
+      if (!front || !back) return null;
+      return { front: front, back: back };
+    }).filter(Boolean);
+
+    if (title.length < 2) {
+      UI.toast('Give your deck a name.', 'error');
+      document.getElementById('deck-title').focus();
+      return;
+    }
+    if (!cards.length) {
+      UI.toast('Add at least one card as “front | back”.', 'error');
+      document.getElementById('deck-cards').focus();
+      return;
+    }
+
+    var toneMap = {
+      Biology: 'mint', Mathematics: 'sky', Psychology: 'peach', History: 'sand',
+      Chemistry: 'lavender', 'Computer science': 'lavender', Languages: 'peach'
+    };
+    var deck = {
+      id: 'custom-' + App.uid(),
+      title: title,
+      subject: subject,
+      tone: toneMap[subject] || tones[Math.floor(Math.random() * tones.length)],
+      description: cards.length + ' card' + (cards.length === 1 ? '' : 's') + ' you added. ' + cards[0].front + '…',
+      custom: true,
+      cards: cards
+    };
+
+    Store.data.decks.push(deck);
+    Store.data.cards[deck.id] = { known: [], lastStudied: null };
+    Store.save();
+    UI.closeDialog('deck-dialog');
+    this.reset();
+    render();
+    UI.toast('Deck created — ' + cards.length + ' card' + (cards.length === 1 ? '' : 's') + ' ready.');
+  });
+
+  grid.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-delete-deck]');
+    if (!button) return;
+    var id = button.dataset.deleteDeck;
+    var deck = Store.data.decks.find(function (item) { return item.id === id; });
+    if (!deck) return;
+    if (!window.confirm('Delete “' + deck.title + '”? This cannot be undone.')) return;
+    Store.data.decks = Store.data.decks.filter(function (item) { return item.id !== id; });
+    delete Store.data.cards[id];
+    Store.save();
+    render();
+    UI.toast('Deck deleted.');
+  });
+
+  render();
+  UI.hydrateIcons();
+</script>
+</body>
+</html>

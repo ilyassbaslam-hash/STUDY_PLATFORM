@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planner — Lumen</title>
+  <meta name="description" content="Plan a realistic study week and check things off.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="planner">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Planner</h1>
+          <p class="page-sub" id="planner-sub"></p>
+        </div>
+        <div class="page-actions">
+          <button class="btn" type="button" id="clear-done"><span data-icon="refresh"></span> Clear done</button>
+          <button class="btn btn-primary" type="button" id="add-task"><span data-icon="plus"></span> Add task</button>
+        </div>
+      </div>
+
+      <div class="planner-summary" id="planner-summary"></div>
+
+      <div class="section-title-row" style="margin-top:20px;">
+        <h2>This week</h2>
+        <span class="muted" id="week-range"></span>
+      </div>
+
+      <div class="planner-scroll">
+        <div class="planner-grid" id="planner-grid"></div>
+      </div>
+
+      <div class="card card-pad" style="margin-top:16px;">
+        <div class="card-head"><h2>A plan you can actually keep</h2><span class="muted">Small is the point</span></div>
+        <div class="form-grid" style="gap:18px;margin-top:4px;">
+          <div class="objective" style="align-items:flex-start;"><span class="icon-chip green" data-icon="target"></span><span><strong>Two or three things a day.</strong><br><span class="muted tiny">A short list you finish beats a long list you abandon.</span></span></div>
+          <div class="objective" style="align-items:flex-start;"><span class="icon-chip amber" data-icon="clock"></span><span><strong>Give each task a time.</strong><br><span class="muted tiny">When it has a slot, it becomes a decision instead of a wish.</span></span></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<dialog class="modal" id="task-dialog" aria-labelledby="task-dialog-title">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <div>
+        <h2 id="task-dialog-title">Add a study task</h2>
+        <p>One concrete action is enough. You can always add more later.</p>
+      </div>
+      <button class="icon-btn" type="button" data-close aria-label="Close">✕</button>
+    </div>
+    <form id="task-form">
+      <div class="modal-body form-stack">
+        <div class="field">
+          <label class="label" for="task-title">What will you do?</label>
+          <input class="input" id="task-title" name="title" type="text" placeholder="e.g. Review cell structures" required maxlength="90">
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="label" for="task-day">Day</label>
+            <select class="select" id="task-day" name="day">
+              <option>Mon</option><option>Tue</option><option>Wed</option><option>Thu</option>
+              <option>Fri</option><option>Sat</option><option>Sun</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="label" for="task-time">Time</label>
+            <input class="input" id="task-time" name="time" type="time" value="18:00" required>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label" for="task-course">Subject or label</label>
+          <input class="input" id="task-course" name="course" type="text" list="course-labels" placeholder="Biology" maxlength="40">
+          <datalist id="course-labels">
+            <option>Biology</option><option>Mathematics</option><option>Psychology</option>
+            <option>History</option><option>Chemistry</option><option>Computer science</option>
+            <option>Languages</option><option>Study skills</option><option>Focus</option><option>Planning</option>
+          </datalist>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" type="button" data-close>Cancel</button>
+        <button class="btn btn-primary" type="submit">Add to my week</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'planner' });
+
+  var week = App.weekDates();
+  var grid = document.getElementById('planner-grid');
+  var today = App.dayName();
+
+  var toneMap = {
+    Biology: 'mint', Mathematics: 'sky', Psychology: 'peach', History: 'sand',
+    Chemistry: 'lavender', 'Computer science': 'lavender', Languages: 'peach',
+    'Study skills': 'lavender', Focus: 'lavender', Planning: 'sand'
+  };
+
+  document.getElementById('week-range').textContent = App.weekRangeLabel();
+
+  function render() {
+    var tasks = Store.data.tasks;
+    var done = tasks.filter(function (task) { return task.done; }).length;
+    var todayCount = tasks.filter(function (task) { return task.day === today; }).length;
+
+    document.getElementById('planner-sub').textContent =
+      tasks.length + ' task' + (tasks.length === 1 ? '' : 's') + ' this week · ' +
+      (done ? done + ' done · ' : '') +
+      (todayCount ? todayCount + ' today' : 'today is open');
+
+    document.getElementById('planner-summary').innerHTML =
+      '<div class="planner-sum-item"><span class="icon-chip lavender" data-icon="calendar"></span><div><strong>' + tasks.length + '</strong><span>tasks planned</span></div></div>' +
+      '<div class="planner-sum-item"><span class="icon-chip green" data-icon="check"></span><div><strong>' + done + '</strong><span>completed</span></div></div>' +
+      '<div class="planner-sum-item"><span class="icon-chip amber" data-icon="flame"></span><div><strong>' + (tasks.length - done) + '</strong><span>still ahead</span></div></div>';
+
+    document.getElementById('clear-done').disabled = done === 0;
+
+    grid.innerHTML = week.map(function (day) {
+      var dayTasks = tasks.filter(function (task) { return task.day === day.day; }).sort(function (a, b) {
+        return String(a.time || '').localeCompare(String(b.time || ''));
+      });
+      var taskHtml = dayTasks.map(function (task) {
+        return '<div class="plan-task' + (task.done ? ' done' : '') + '" data-tone="' + (toneMap[task.course] || 'lavender') + '">' +
+          '<label>' +
+            '<input type="checkbox" data-task="' + task.id + '"' + (task.done ? ' checked' : '') + ' aria-label="Mark ' + App.esc(task.title) + ' complete">' +
+            '<span class="plan-time">' + App.esc(task.time) + '</span>' +
+            '<span class="plan-title">' + App.esc(task.title) + '</span>' +
+            '<span class="plan-course">' + App.esc(task.course) + '</span>' +
+          '</label>' +
+          '<button class="plan-del" type="button" data-delete="' + task.id + '" aria-label="Delete task" title="Delete task">' + UI.icon('x') + '</button>' +
+        '</div>';
+      }).join('');
+
+      return '<div class="day-col' + (day.today ? ' today' : '') + '">' +
+        '<div class="day-head"><span class="day-name">' + (day.today ? 'Today' : day.day) + '</span><span class="day-date">' + day.dateNum + '</span></div>' +
+        '<div class="day-tasks">' + (taskHtml || '<div class="notes-empty" style="padding:18px 6px;font-size:10px;">A clear day.</div>') + '</div>' +
+        '<button class="plan-add" type="button" data-add-day="' + day.day + '">' + UI.icon('plus') + ' Add</button>' +
+      '</div>';
+    }).join('');
+
+    UI.hydrateIcons(grid);
+  }
+
+  function openTaskDialog(day) {
+    var form = document.getElementById('task-form');
+    form.reset();
+    document.getElementById('task-day').value = day || today;
+    document.getElementById('task-time').value = '18:00';
+    document.getElementById('task-course').value = 'Study skills';
+    UI.openDialog('task-dialog');
+  }
+
+  document.getElementById('add-task').addEventListener('click', function () {
+    openTaskDialog(today);
+  });
+
+  grid.addEventListener('click', function (event) {
+    var add = event.target.closest('[data-add-day]');
+    if (add) {
+      openTaskDialog(add.dataset.addDay);
+      return;
+    }
+    var del = event.target.closest('[data-delete]');
+    if (del) {
+      var id = del.dataset.delete;
+      Store.data.tasks = Store.data.tasks.filter(function (task) { return task.id !== id; });
+      Store.save();
+      render();
+      UI.toast('Task removed.');
+    }
+  });
+
+  grid.addEventListener('change', function (event) {
+    var input = event.target.closest('[data-task]');
+    if (!input) return;
+    var task = Store.data.tasks.find(function (item) { return item.id === input.dataset.task; });
+    if (!task) return;
+    task.done = input.checked;
+    Store.save();
+    render();
+    if (task.done) UI.toast('Done. That counts.');
+  });
+
+  document.getElementById('task-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var title = document.getElementById('task-title').value.trim();
+    var day = document.getElementById('task-day').value;
+    var time = document.getElementById('task-time').value;
+    var course = document.getElementById('task-course').value.trim() || 'Study';
+
+    if (title.length < 2) {
+      UI.toast('Give the task a name.', 'error');
+      document.getElementById('task-title').focus();
+      return;
+    }
+    if (!time) {
+      UI.toast('Add a time so it has a place in the day.', 'error');
+      return;
+    }
+
+    Store.data.tasks.push({
+      id: 'task-' + App.uid(),
+      day: day,
+      time: time,
+      title: title,
+      course: course,
+      tone: toneMap[course] || 'lavender',
+      done: false
+    });
+    Store.save();
+    UI.closeDialog('task-dialog');
+    render();
+    UI.toast('Added to ' + day + '.');
+  });
+
+  document.getElementById('clear-done').addEventListener('click', function () {
+    var count = Store.data.tasks.filter(function (task) { return task.done; }).length;
+    if (!count) return;
+    Store.data.tasks = Store.data.tasks.filter(function (task) { return !task.done; });
+    Store.save();
+    render();
+    UI.toast('Cleared ' + count + ' finished task' + (count === 1 ? '' : 's') + '.');
+  });
+
+  render();
+  UI.hydrateIcons();
+</script>
+</body>
+</html>

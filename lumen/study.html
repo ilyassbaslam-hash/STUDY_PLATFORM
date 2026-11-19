@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Study session — Lumen</title>
+  <meta name="description" content="A focused flashcard session in Lumen.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body>
+
+<header class="focus-top">
+  <a class="focus-back" href="flashcards.html"><span data-icon="arrowLeft"></span> Decks</a>
+  <span class="focus-sep" aria-hidden="true"></span>
+  <span class="focus-title" id="focus-title">Flashcards</span>
+  <div class="focus-track">
+    <div class="progress"><span id="focus-bar" style="width:0%"></span></div>
+    <span id="focus-count">0 / 0</span>
+  </div>
+  <div class="focus-actions">
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme"></button>
+    <a class="icon-btn" href="flashcards.html" aria-label="End session" title="End session"><span data-icon="x"></span></a>
+  </div>
+</header>
+
+<main class="study-page" id="study-page"></main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.init();
+
+  var deck = App.getDeck(App.param('deck')) || App.allDecks()[0];
+  var page = document.getElementById('study-page');
+  var focusTitle = document.getElementById('focus-title');
+  var focusBar = document.getElementById('focus-bar');
+  var focusCount = document.getElementById('focus-count');
+
+  var queue = [];
+  var index = 0;
+  var revealed = false;
+  var finished = false;
+  var stats = { reviewed: 0, gotIt: 0, again: 0 };
+  var known = [];
+
+  function shuffle(list) {
+    var out = list.slice();
+    for (var i = out.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = out[i];
+      out[i] = out[j];
+      out[j] = temp;
+    }
+    return out;
+  }
+
+  function buildQueue() {
+    known = ((Store.data.cards[deck.id] || {}).known || []).slice();
+    var knownSet = new Set(known);
+    var unknownCards = [];
+    var knownCards = [];
+    deck.cards.forEach(function (card, i) {
+      (knownSet.has(i) ? knownCards : unknownCards).push(i);
+    });
+    // Put what still needs work first, then the cards already mastered.
+    queue = shuffle(unknownCards).concat(shuffle(knownCards));
+    index = 0;
+    revealed = false;
+    finished = false;
+    stats = { reviewed: 0, gotIt: 0, again: 0 };
+  }
+
+  function syncTop() {
+    var total = queue.length;
+    var position = finished ? total : Math.min(index + 1, total);
+    focusBar.style.width = (total ? (finished ? 100 : Math.round((index / total) * 100)) : 0) + '%';
+    focusCount.textContent = position + ' / ' + total;
+    focusTitle.textContent = deck ? deck.title : 'Flashcards';
+  }
+
+  function renderMissing() {
+    focusBar.style.width = '0%';
+    focusCount.textContent = '0 / 0';
+    page.innerHTML =
+      '<div class="empty" style="padding:60px 20px;">' +
+        '<span class="empty-icon" data-icon="cards"></span>' +
+        '<h3>No deck to study</h3>' +
+        '<p>Pick a deck from your collection, or make a new one to get started.</p>' +
+        '<a class="btn btn-primary btn-sm" href="flashcards.html">Browse decks</a>' +
+      '</div>';
+    UI.hydrateIcons();
+  }
+
+  function renderCard() {
+    if (finished) {
+      renderFinished();
+      return;
+    }
+    if (!deck || !queue.length) {
+      renderMissing();
+      return;
+    }
+
+    var card = deck.cards[queue[index]];
+    var total = queue.length;
+    var body = revealed
+      ? '<div class="flashcard-answer">' + App.esc(card.back) + '</div>'
+      : '<div class="flashcard-question">' + App.esc(card.front) + '</div>';
+
+    page.innerHTML =
+      '<div class="study-topline">' +
+        '<span class="study-label">' + App.esc(deck.subject) + ' · flashcards</span>' +
+        '<span class="study-count">Card ' + (index + 1) + ' of ' + total + '</span>' +
+      '</div>' +
+      '<article class="flashcard" id="flashcard" tabindex="0" role="button" aria-label="Flashcard. ' + (revealed ? 'Answer shown. Rate yourself below.' : 'Click or press space to reveal the answer.') + '">' +
+        '<div class="flashcard-side">' +
+          '<span class="flashcard-kicker">' + (revealed ? 'Answer' : 'Question') + '</span>' +
+          '<span class="badge badge-outline">' + App.esc(deck.title) + '</span>' +
+        '</div>' +
+        '<div class="flashcard-body">' + body + '</div>' +
+        '<div class="flashcard-foot">' +
+          '<span class="muted tiny">' + (revealed ? 'How did that go?' : 'Click to reveal') + '</span>' +
+          '<span class="study-count">' + (index + 1) + ' / ' + total + '</span>' +
+        '</div>' +
+      '</article>' +
+      '<div class="study-actions">' +
+        '<button class="btn btn-again" type="button" id="again"' + (revealed ? '' : ' disabled') + '>Again <span class="kbd">1</span></button>' +
+        '<button class="btn btn-primary" type="button" id="got-it"' + (revealed ? '' : ' disabled') + '>Got it <span class="kbd">2</span></button>' +
+      '</div>' +
+      '<div class="study-hints">' +
+        '<span><span class="kbd">Space</span> reveal</span>' +
+        '<span><span class="kbd">1</span> again</span>' +
+        '<span><span class="kbd">2</span> got it</span>' +
+        '<span><span class="kbd">Esc</span> exit</span>' +
+      '</div>';
+
+    document.getElementById('flashcard').addEventListener('click', function () {
+      if (!revealed) reveal();
+    });
+    document.getElementById('again').addEventListener('click', function () { rate(false); });
+    document.getElementById('got-it').addEventListener('click', function () { rate(true); });
+    syncTop();
+  }
+
+  function reveal() {
+    if (revealed || finished) return;
+    revealed = true;
+    renderCard();
+    var card = document.getElementById('flashcard');
+    if (card) card.focus();
+  }
+
+  function rate(gotIt) {
+    if (!revealed || finished) return;
+    var cardIndex = queue[index];
+    var knownSet = new Set(known);
+    if (gotIt) {
+      knownSet.add(cardIndex);
+      stats.gotIt++;
+    } else {
+      knownSet.delete(cardIndex);
+      stats.again++;
+    }
+    known = Array.from(knownSet).sort(function (a, b) { return a - b; });
+    stats.reviewed++;
+
+    var record = Store.data.cards[deck.id] || {};
+    Store.data.cards[deck.id] = {
+      known: known,
+      lastStudied: new Date().toISOString()
+    };
+    Store.save();
+    Store.addActivity(1);
+
+    index++;
+    revealed = false;
+    if (index >= queue.length) {
+      finished = true;
+      renderFinished();
+    } else {
+      renderCard();
+    }
+  }
+
+  function renderFinished() {
+    var total = queue.length;
+    var pct = known.length && total ? Math.round((known.length / deck.cards.length) * 100) : 0;
+    focusBar.style.width = '100%';
+    focusCount.textContent = total + ' / ' + total;
+
+    page.innerHTML =
+      '<div class="study-done-card">' +
+        '<div class="done-ring">' + App.ring(pct, { size: 132, stroke: 8 }) + '<div class="ring-center"><strong>' + pct + '%</strong><span>mastered</span></div></div>' +
+        '<h1>Deck finished.</h1>' +
+        '<p>You reviewed ' + stats.reviewed + ' card' + (stats.reviewed === 1 ? '' : 's') + ' from <strong>' + App.esc(deck.title) + '</strong>. ' +
+          (stats.again ? 'The ' + stats.again + ' you marked again will be waiting next time.' : 'All of them felt familiar — nicely done.') + '</p>' +
+        '<div class="done-stats">' +
+          '<div class="done-stat"><strong>' + stats.reviewed + '</strong><span>reviewed</span></div>' +
+          '<div class="done-stat"><strong>' + stats.gotIt + '</strong><span>got it</span></div>' +
+          '<div class="done-stat"><strong>' + known.length + '</strong><span>now mastered</span></div>' +
+        '</div>' +
+        '<div class="done-actions">' +
+          '<a class="btn" href="flashcards.html">Back to decks</a>' +
+          '<button class="btn btn-primary" type="button" id="study-again">Study again ' + UI.icon('refresh') + '</button>' +
+          '<a class="btn" href="quizzes.html">Try a quiz</a>' +
+        '</div>' +
+      '</div>';
+
+    document.getElementById('study-again').addEventListener('click', function () {
+      buildQueue();
+      renderCard();
+    });
+    syncTop();
+  }
+
+  function start() {
+    if (!deck || !deck.cards || !deck.cards.length) {
+      renderMissing();
+      return;
+    }
+    document.title = deck.title + ' — Study — Lumen';
+    buildQueue();
+    if (queue.length) renderCard();
+    else renderMissing();
+  }
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      window.location.href = 'flashcards.html';
+      return;
+    }
+    if (!deck || finished) return;
+    if (event.key === ' ' || event.key === 'Spacebar') {
+      event.preventDefault();
+      reveal();
+      return;
+    }
+    if (event.key === '1' && revealed) {
+      event.preventDefault();
+      rate(false);
+      return;
+    }
+    if (event.key === '2' && revealed) {
+      event.preventDefault();
+      rate(true);
+    }
+  });
+
+  start();
+  UI.hydrateIcons();
+</script>
+</body>
+</html>

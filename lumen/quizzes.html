@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quizzes — Lumen</title>
+  <meta name="description" content="Check what you actually know with short practice quizzes.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="quizzes">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Quizzes</h1>
+          <p class="page-sub" id="quizzes-sub"></p>
+        </div>
+        <div class="page-actions">
+          <a class="btn" href="flashcards.html"><span data-icon="cards"></span> Review cards</a>
+          <a class="btn btn-primary" href="quiz.html?id=cell-basics" id="start-quiz">Start a quiz <span data-icon="arrowRight"></span></a>
+        </div>
+      </div>
+
+      <div class="planner-summary" id="quiz-summary"></div>
+
+      <div class="section-title-row" style="margin-top:20px;">
+        <h2>Practice quizzes</h2>
+        <span class="muted" id="quiz-count"></span>
+      </div>
+
+      <div class="quiz-grid" id="quiz-grid"></div>
+
+      <div class="progress-grid" style="margin-top:18px;">
+        <section class="card card-pad">
+          <div class="card-head">
+            <div><h2>Recent attempts</h2><span class="muted">Your latest scores</span></div>
+            <a class="link-arrow" href="progress.html">Progress <span data-icon="arrowRight"></span></a>
+          </div>
+          <div class="history-list" id="quiz-history"></div>
+        </section>
+
+        <section class="card card-pad">
+          <div class="card-head"><h2>How to use these</h2></div>
+          <div class="objective" style="align-items:flex-start;padding:5px 0;">
+            <span class="icon-chip green" data-icon="target"></span>
+            <span><strong>Guess before you peek.</strong><br><span class="muted tiny">A quiz is a rehearsal, not a judgement. Retrieval is what makes it stick.</span></span>
+          </div>
+          <div class="objective" style="align-items:flex-start;padding:5px 0;">
+            <span class="icon-chip amber" data-icon="refresh"></span>
+            <span><strong>Retake after a gap.</strong><br><span class="muted tiny">Coming back the next day tells you more than passing once right away.</span></span>
+          </div>
+          <div class="objective" style="align-items:flex-start;padding:5px 0;">
+            <span class="icon-chip lavender" data-icon="note"></span>
+            <span><strong>Read the explanation.</strong><br><span class="muted tiny">The useful part is the “why”, not the score at the top.</span></span>
+          </div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'quizzes' });
+
+  var quizzes = DB.quizzes;
+  var attempts = quizzes.map(function (quiz) {
+    return { quiz: quiz, stats: App.quizStats(quiz.id) };
+  }).filter(function (item) { return item.stats; });
+
+  var totalAttempts = attempts.reduce(function (sum, item) { return sum + (item.stats.attempts || 0); }, 0);
+  var totalQuestions = quizzes.reduce(function (sum, quiz) { return sum + quiz.questions.length; }, 0);
+  var bestAverage = attempts.length
+    ? Math.round(attempts.reduce(function (sum, item) { return sum + item.stats.best; }, 0) / attempts.length)
+    : 0;
+
+  document.getElementById('quizzes-sub').textContent =
+    quizzes.length + ' practice quizzes · ' + totalQuestions + ' questions · ' +
+    (attempts.length ? bestAverage + '% average best score' : 'start with any topic');
+  document.getElementById('quiz-count').textContent = quizzes.length + ' quizzes';
+
+  document.getElementById('quiz-summary').innerHTML =
+    '<div class="planner-sum-item"><span class="icon-chip lavender" data-icon="quiz"></span><div><strong>' + quizzes.length + '</strong><span>quizzes available</span></div></div>' +
+    '<div class="planner-sum-item"><span class="icon-chip sky" data-icon="refresh"></span><div><strong>' + totalAttempts + '</strong><span>attempts so far</span></div></div>' +
+    '<div class="planner-sum-item"><span class="icon-chip green" data-icon="award"></span><div><strong>' + (attempts.length ? bestAverage + '%' : '—') + '</strong><span>average best score</span></div></div>';
+
+  var difficultyClass = { Easy: 'badge-green', Medium: 'badge-amber', Hard: 'badge-red' };
+
+  document.getElementById('quiz-grid').innerHTML = quizzes.map(function (quiz) {
+    var stats = App.quizStats(quiz.id);
+    var best = stats ? stats.best : null;
+    var bestClass = best !== null && best >= 80 ? 'good' : '';
+    return '<article class="quiz-card">' +
+      '<div class="quiz-card-top">' +
+        '<span class="quiz-subject"><span class="dot" style="background:var(--tone-deep,var(--accent))"></span>' + App.esc(quiz.subject) + '</span>' +
+        '<span class="badge ' + (difficultyClass[quiz.difficulty] || 'badge-outline') + '">' + App.esc(quiz.difficulty) + '</span>' +
+      '</div>' +
+      '<h2 class="quiz-title">' + App.esc(quiz.title) + '</h2>' +
+      '<p class="quiz-desc">' + App.esc(quiz.description) + '</p>' +
+      '<div class="quiz-meta">' +
+        '<span>' + UI.icon('quiz') + quiz.questions.length + ' questions</span>' +
+        '<span>' + UI.icon('clock') + quiz.minutes + ' min</span>' +
+        '<span>' + UI.icon('chart') + (stats ? (stats.attempts || 1) + ' attempt' + ((stats.attempts || 1) === 1 ? '' : 's') : 'Not taken') + '</span>' +
+      '</div>' +
+      '<div class="quiz-foot">' +
+        '<span class="quiz-best">' + (best === null ? 'Best score' : 'Best score') + '<strong class="' + bestClass + '">' + (best === null ? '—' : best + '%') + '</strong></span>' +
+        '<a class="btn ' + (best === null ? 'btn-primary' : '') + '" href="quiz.html?id=' + encodeURIComponent(quiz.id) + '">' + (best === null ? 'Start quiz' : 'Retake') + ' ' + UI.icon('arrowRight') + '</a>' +
+      '</div>' +
+    '</article>';
+  }).join('');
+
+  var recentAttempts = attempts.sort(function (a, b) {
+    return new Date(b.stats.lastAt || 0) - new Date(a.stats.lastAt || 0);
+  });
+
+  var historyWrap = document.getElementById('quiz-history');
+  if (!recentAttempts.length) {
+    historyWrap.innerHTML = '<div class="empty" style="padding:22px 10px 8px;"><span class="empty-icon" data-icon="quiz"></span><h3>No attempts yet</h3><p>Take any quiz and your score will appear here.</p></div>';
+  } else {
+    historyWrap.innerHTML = recentAttempts.map(function (item) {
+      return '<a class="history-row" href="quiz.html?id=' + encodeURIComponent(item.quiz.id) + '">' +
+        '<span class="history-score ' + (item.stats.best >= 80 ? 'good' : '') + '">' + item.stats.best + '%</span>' +
+        '<span class="history-info"><span class="history-title">' + App.esc(item.quiz.title) + '</span><span class="history-date">' + App.relativeDate(item.stats.lastAt) + ' · ' + (item.stats.attempts || 1) + ' attempt' + ((item.stats.attempts || 1) === 1 ? '' : 's') + '</span></span>' +
+        UI.icon('chevronRight') +
+      '</a>';
+    }).join('');
+  }
+
+  var first = quizzes.find(function (quiz) { return !App.quizStats(quiz.id); }) || quizzes[0];
+  document.getElementById('start-quiz').href = 'quiz.html?id=' + encodeURIComponent(first.id);
+  UI.hydrateIcons();
+</script>
+</body>
+</html>

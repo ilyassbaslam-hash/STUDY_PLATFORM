@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Set up your study space — Lumen</title>
+  <meta name="description" content="Tell Lumen what you're working towards and build a study rhythm that fits.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/marketing.css">
+</head>
+<body>
+
+<div class="onboard">
+  <div class="onboard-top">
+    <a class="brand" href="index.html" aria-label="Lumen home">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/><circle cx="12" cy="12" r="2.3"/>
+        </svg>
+      </span>
+      <span>Lumen</span>
+    </a>
+    <div class="row gap-12">
+      <div class="onboard-progress" aria-hidden="true"><span id="onboard-progress" style="width:33.33%"></span></div>
+      <span class="tiny muted" id="onboard-label">1 of 3</span>
+    </div>
+  </div>
+
+  <div class="onboard-card">
+    <section class="onboard-step" data-step="1">
+      <span class="step-kicker">Step one · Your goal</span>
+      <h1>What are you working towards?</h1>
+      <p class="onboard-sub">We’ll shape your dashboard around the thing that matters most right now. You can change this later.</p>
+
+      <div class="choice-grid">
+        <label class="choice">
+          <input type="radio" name="goal" value="Pass my finals" checked>
+          <span class="choice-icon" data-icon="target"></span>
+          <span class="choice-copy">
+            <strong>Pass my finals</strong>
+            <span>Make revision feel less last-minute.</span>
+          </span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="goal" value="Learn a language">
+          <span class="choice-icon" data-icon="globe"></span>
+          <span class="choice-copy">
+            <strong>Learn a language</strong>
+            <span>A little practice, most days.</span>
+          </span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="goal" value="Build career skills">
+          <span class="choice-icon" data-icon="briefcase"></span>
+          <span class="choice-copy">
+            <strong>Build career skills</strong>
+            <span>Make steady progress after work.</span>
+          </span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="goal" value="Stay curious">
+          <span class="choice-icon" data-icon="sparkle"></span>
+          <span class="choice-copy">
+            <strong>Stay curious</strong>
+            <span>Explore ideas without the pressure.</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="onboard-foot">
+        <a class="onboard-skip" href="login.html">I already have an account</a>
+        <button class="btn btn-primary" type="button" data-next>Continue <span data-icon="arrowRight"></span></button>
+      </div>
+    </section>
+
+    <section class="onboard-step" data-step="2" hidden>
+      <span class="step-kicker">Step two · Subjects</span>
+      <h1>What are you studying?</h1>
+      <p class="onboard-sub">Pick a few areas to start with. Lumen will use these to suggest decks, quizzes, and a starting point.</p>
+
+      <div class="subject-grid">
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="Biology"> Biology <span data-icon="check"></span></label>
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="Mathematics"> Mathematics <span data-icon="check"></span></label>
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="Psychology"> Psychology <span data-icon="check"></span></label>
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="History"> History <span data-icon="check"></span></label>
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="Chemistry"> Chemistry <span data-icon="check"></span></label>
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="Computer science"> Computer science <span data-icon="check"></span></label>
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="Languages"> Languages <span data-icon="check"></span></label>
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="Business"> Business <span data-icon="check"></span></label>
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="Design"> Design <span data-icon="check"></span></label>
+        <label class="subject-chip"><input type="checkbox" name="subjects" value="Health"> Health <span data-icon="check"></span></label>
+      </div>
+
+      <div class="onboard-foot">
+        <button class="btn btn-ghost" type="button" data-back><span data-icon="arrowLeft"></span> Back</button>
+        <button class="btn btn-primary" type="button" data-next>Continue <span data-icon="arrowRight"></span></button>
+      </div>
+    </section>
+
+    <section class="onboard-step" data-step="3" hidden>
+      <span class="step-kicker">Step three · Rhythm</span>
+      <h1>How much time feels honest?</h1>
+      <p class="onboard-sub">A daily target you can meet on a normal day beats a perfect plan you abandon by Thursday.</p>
+
+      <div class="daily-grid">
+        <label class="daily-option">
+          <input type="radio" name="daily" value="15">
+          <strong>15m</strong><span>Warm-up</span>
+        </label>
+        <label class="daily-option">
+          <input type="radio" name="daily" value="30">
+          <strong>30m</strong><span>Steady</span>
+        </label>
+        <label class="daily-option">
+          <input type="radio" name="daily" value="45" checked>
+          <strong>45m</strong><span>Focused</span>
+        </label>
+        <label class="daily-option">
+          <input type="radio" name="daily" value="60">
+          <strong>60m</strong><span>Deep</span>
+        </label>
+      </div>
+
+      <div class="onboard-reminder">
+        <div>
+          <h3>A gentle daily nudge</h3>
+          <p>One reminder at the time you usually study. No streak-shaming.</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="onboard-reminders" checked>
+          <span class="switch-track"></span>
+          <span class="sr-only">Enable daily study reminders</span>
+        </label>
+      </div>
+
+      <div class="onboard-foot">
+        <button class="btn btn-ghost" type="button" data-back><span data-icon="arrowLeft"></span> Back</button>
+        <button class="btn btn-primary" type="button" data-next>Finish setup <span data-icon="check"></span></button>
+      </div>
+    </section>
+
+    <section class="onboard-step onboard-done" data-step="4" hidden>
+      <span class="done-icon" data-icon="check"></span>
+      <h1>You’re all set, <span id="done-name">Alex</span>.</h1>
+      <p>Your study space is ready. Start with a short lesson, review a deck, or put one task in your plan for today.</p>
+      <a class="btn btn-primary btn-lg" href="dashboard.html">Enter your dashboard</a>
+    </section>
+  </div>
+
+  <p class="onboard-note">Everything here can be changed later in settings.</p>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.init();
+
+  var profile = Store.data.profile;
+  var steps = Array.from(document.querySelectorAll('.onboard-step'));
+  var current = 1;
+
+  // Reflect any earlier choices.
+  var goals = Array.from(document.querySelectorAll('input[name="goal"]'));
+  var savedGoal = goals.find(function (radio) { return radio.value === profile.goal; });
+  if (savedGoal) goals.forEach(function (radio) { radio.checked = radio === savedGoal; });
+
+  document.querySelectorAll('input[name="subjects"]').forEach(function (input) {
+    input.checked = Array.isArray(profile.subjects) && profile.subjects.indexOf(input.value) !== -1;
+  });
+
+  var daily = Array.from(document.querySelectorAll('input[name="daily"]'));
+  var savedDaily = daily.find(function (radio) { return Number(radio.value) === Number(profile.dailyMinutes); });
+  if (savedDaily) daily.forEach(function (radio) { radio.checked = radio === savedDaily; });
+
+  var reminder = document.getElementById('onboard-reminders');
+  reminder.checked = !!Store.data.settings.reminders;
+
+  function show(step) {
+    current = step;
+    steps.forEach(function (section) {
+      section.hidden = Number(section.dataset.step) !== step;
+    });
+    var progress = Math.min(100, (step / 3) * 100);
+    document.getElementById('onboard-progress').style.width = progress + '%';
+    document.getElementById('onboard-label').textContent = step >= 4 ? 'All set' : step + ' of 3';
+    if (step === 4) {
+      document.getElementById('done-name').textContent = (Store.data.profile.name || 'Alex').split(' ')[0];
+    }
+  }
+
+  function saveSetup() {
+    var goal = document.querySelector('input[name="goal"]:checked');
+    var subjects = Array.from(document.querySelectorAll('input[name="subjects"]:checked')).map(function (input) { return input.value; });
+    var dailyChoice = document.querySelector('input[name="daily"]:checked');
+    Store.data.profile.goal = goal ? goal.value : 'Pass my finals';
+    Store.data.profile.subjects = subjects;
+    Store.data.profile.dailyMinutes = dailyChoice ? Number(dailyChoice.value) : 45;
+    Store.data.settings.reminders = reminder.checked;
+    Store.data.profile.onboarded = true;
+    Store.save();
+  }
+
+  document.querySelectorAll('[data-next]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (current === 3) {
+        saveSetup();
+        show(4);
+        return;
+      }
+      if (current < 4) show(current + 1);
+    });
+  });
+
+  document.querySelectorAll('[data-back]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (current > 1) show(current - 1);
+    });
+  });
+
+  show(1);
+</script>
+</body>
+</html>

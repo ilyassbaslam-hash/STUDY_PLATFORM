@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reset your password — Lumen</title>
+  <meta name="description" content="Reset the password for your Lumen account.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/marketing.css">
+</head>
+<body>
+
+<main class="auth-page">
+  <aside class="auth-aside">
+    <a class="brand" href="index.html" aria-label="Lumen home">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/><circle cx="12" cy="12" r="2.3"/>
+        </svg>
+      </span>
+      <span>Lumen</span>
+    </a>
+
+    <div class="auth-main-quote">
+      <span class="eyebrow"><span class="dot"></span>A small reset</span>
+      <blockquote>Forgetting a password is normal. <em>Forgetting an idea isn’t.</em></blockquote>
+      <div class="auth-person">
+        <span class="avatar">LH</span>
+        <div>
+          <strong>Lumen help desk</strong>
+          <span>We’ll get you back in</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-aside-foot">
+      <div class="auth-stat"><strong>2 min</strong><span>to get back in</span></div>
+      <div class="auth-stat"><strong>Safe</strong><span>and simple</span></div>
+      <div class="auth-stat"><strong>Still here</strong><span>your work is waiting</span></div>
+    </div>
+  </aside>
+
+  <section class="auth-main">
+    <div class="auth-card">
+      <a class="brand auth-mobile-brand" href="index.html">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/><circle cx="12" cy="12" r="2.3"/>
+          </svg>
+        </span>
+        <span>Lumen</span>
+      </a>
+
+      <a class="link-arrow" href="login.html" style="margin-bottom:18px;"><span data-icon="arrowLeft"></span> Back to log in</a>
+      <span class="eyebrow"><span class="dot"></span>Password reset</span>
+      <h1>Let’s get you<br>back in.</h1>
+      <p class="auth-sub">Enter the email you use for Lumen and we’ll send a link to reset your password.</p>
+
+      <form class="auth-form" id="forgot-form">
+        <div class="field">
+          <label class="label" for="email">Email address</label>
+          <div class="input-icon">
+            <span data-icon="mail"></span>
+            <input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">Send reset link</button>
+      </form>
+
+      <div class="empty" id="reset-success" hidden>
+        <span class="empty-icon" data-icon="mail"></span>
+        <h3>Check your inbox</h3>
+        <p>If an account exists for <strong id="reset-email"></strong>, a reset link is on its way. The link expires in 30 minutes.</p>
+        <a class="btn btn-primary btn-sm" href="login.html">Back to log in</a>
+        <button class="btn btn-ghost btn-sm" type="button" id="reset-again">Try another email</button>
+      </div>
+
+      <p class="auth-legal">In this demo no email is sent — the reset flow is shown for completeness.</p>
+    </div>
+  </section>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.init();
+
+  var form = document.getElementById('forgot-form');
+  var success = document.getElementById('reset-success');
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var email = document.getElementById('email').value.trim();
+    if (!email || !email.includes('@')) {
+      UI.toast('Enter a valid email address.', 'error');
+      return;
+    }
+    document.getElementById('reset-email').textContent = email;
+    form.hidden = true;
+    success.hidden = false;
+    success.querySelector('.btn-primary').focus();
+  });
+
+  document.getElementById('reset-again').addEventListener('click', function () {
+    success.hidden = true;
+    form.hidden = false;
+    document.getElementById('email').focus();
+  });
+</script>
+</body>
+</html>

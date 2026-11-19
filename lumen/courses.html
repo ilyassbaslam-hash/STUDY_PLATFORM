@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Courses — Lumen</title>
+  <meta name="description" content="Your Lumen courses, all in one place.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="courses">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Courses</h1>
+          <p class="page-sub" id="courses-sub"></p>
+        </div>
+        <div class="page-actions">
+          <a class="btn" href="planner.html"><span data-icon="calendar"></span> Plan the week</a>
+          <a class="btn btn-primary" href="study.html" id="review-link">Review cards <span data-icon="arrowRight"></span></a>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="chips" id="subject-chips" role="group" aria-label="Filter courses by subject"></div>
+        <div class="filter-search">
+          <div class="input-icon">
+            <span data-icon="search"></span>
+            <input class="input" type="search" id="course-search" placeholder="Find a course…" aria-label="Find a course" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="courses-grid" id="courses-grid"></div>
+
+      <div id="courses-empty" hidden>
+        <div class="empty" style="margin-top:8px;">
+          <span class="empty-icon" data-icon="search"></span>
+          <h3>No courses match that</h3>
+          <p>Try a different subject or a shorter search.</p>
+          <button class="btn btn-sm" type="button" id="clear-filters">Clear filters</button>
+        </div>
+      </div>
+
+      <p class="muted tiny" id="courses-foot" style="margin-top:18px;"></p>
+
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'courses' });
+
+  var courses = DB.courses;
+  var stats = App.overallStats();
+  var subject = 'All';
+  var query = '';
+
+  document.getElementById('courses-sub').textContent =
+    courses.length + ' courses · ' + stats.lessonsDone + ' of ' + stats.lessonsTotal + ' lessons complete · ' +
+    stats.cardsKnown + ' cards mastered';
+
+  var subjects = ['All'].concat(courses.map(function (course) { return course.subject; }));
+  var chips = document.getElementById('subject-chips');
+  chips.innerHTML = subjects.map(function (name) {
+    return '<button class="chip' + (name === subject ? ' active' : '') + '" type="button" data-subject="' + App.esc(name) + '">' + App.esc(name) + '</button>';
+  }).join('');
+
+  var grid = document.getElementById('courses-grid');
+  var empty = document.getElementById('courses-empty');
+  var foot = document.getElementById('courses-foot');
+
+  function courseCard(course) {
+    var progress = App.courseProgress(course);
+    var lessonCount = App.courseLessons(course).length;
+    var doneClass = progress.pct === 100 ? ' complete' : '';
+    var label = progress.pct === 100 ? 'Complete' : progress.pct === 0 ? 'Not started' : 'In progress';
+    return '<a class="course-card" href="course.html?id=' + encodeURIComponent(course.id) + '" data-subject="' + App.esc(course.subject) + '" data-title="' + App.esc(course.title + ' ' + course.subject + ' ' + course.blurb) + '">' +
+      '<div class="course-cover" data-tone="' + course.tone + '">' +
+        '<div class="cover-top">' +
+          '<span class="cover-subject">' + App.esc(course.subject) + '</span>' +
+          '<span class="cover-level">' + App.esc(course.level) + '</span>' +
+        '</div>' +
+        '<span class="cover-mono" aria-hidden="true">' + App.monogram(course) + '</span>' +
+        '<div class="cover-lines" aria-hidden="true"><span></span><span></span><span></span></div>' +
+      '</div>' +
+      '<div class="course-body">' +
+        '<h2 class="course-title">' + App.esc(course.title) + '</h2>' +
+        '<p class="course-desc">' + App.esc(course.blurb) + '</p>' +
+        '<div class="course-meta">' +
+          '<span>' + UI.icon('book') + lessonCount + ' lessons</span>' +
+          '<span>' + UI.icon('clock') + course.hours + 'h</span>' +
+          '<span>' + UI.icon('chart') + label + '</span>' +
+        '</div>' +
+        '<div class="course-progress">' +
+          '<div class="course-progress-top"><span>' + (progress.done ? progress.done + ' of ' + progress.total + ' done' : 'Ready when you are') + '</span><strong class="' + doneClass.trim() + '">' + progress.pct + '%</strong></div>' +
+          '<div class="progress' + (progress.pct === 100 ? ' green' : '') + '"><span style="width:' + progress.pct + '%"></span></div>' +
+        '</div>' +
+      '</div>' +
+    '</a>';
+  }
+
+  function render() {
+    var list = courses.filter(function (course) {
+      var matchSubject = subject === 'All' || course.subject === subject;
+      var haystack = (course.title + ' ' + course.subject + ' ' + course.blurb).toLowerCase();
+      var matchQuery = !query || haystack.indexOf(query) !== -1;
+      return matchSubject && matchQuery;
+    });
+
+    grid.innerHTML = list.map(courseCard).join('');
+    grid.hidden = list.length === 0;
+    empty.hidden = list.length !== 0;
+
+    var done = list.reduce(function (sum, course) { return sum + App.courseProgress(course).done; }, 0);
+    var total = list.reduce(function (sum, course) { return sum + App.courseLessons(course).length; }, 0);
+    foot.textContent = list.length
+      ? 'Showing ' + list.length + ' course' + (list.length === 1 ? '' : 's') + ' · ' + done + ' of ' + total + ' lessons complete'
+      : '';
+
+    document.getElementById('review-link').href = 'study.html';
+  }
+
+  chips.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-subject]');
+    if (!button) return;
+    subject = button.dataset.subject;
+    chips.querySelectorAll('.chip').forEach(function (chip) {
+      chip.classList.toggle('active', chip === button);
+    });
+    render();
+  });
+
+  document.getElementById('course-search').addEventListener('input', function (event) {
+    query = event.target.value.trim().toLowerCase();
+    render();
+  });
+
+  document.getElementById('clear-filters').addEventListener('click', function () {
+    subject = 'All';
+    query = '';
+    document.getElementById('course-search').value = '';
+    chips.querySelectorAll('.chip').forEach(function (chip) {
+      chip.classList.toggle('active', chip.dataset.subject === 'All');
+    });
+    render();
+  });
+
+  render();
+  UI.hydrateIcons();
+</script>
+</body>
+</html>
