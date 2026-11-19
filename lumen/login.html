@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in — Lumen</title>
+  <meta name="description" content="Log in to Lumen and pick up your study week where you left it.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/marketing.css">
+</head>
+<body>
+
+<main class="auth-page">
+  <aside class="auth-aside">
+    <a class="brand" href="index.html" aria-label="Lumen home">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/><circle cx="12" cy="12" r="2.3"/>
+        </svg>
+      </span>
+      <span>Lumen</span>
+    </a>
+
+    <div class="auth-main-quote">
+      <span class="eyebrow"><span class="dot"></span>Welcome back</span>
+      <blockquote>Make a little room for <em>the work that sticks.</em></blockquote>
+      <div class="auth-person">
+        <span class="avatar">AR</span>
+        <div>
+          <strong>Alex Rivera</strong>
+          <span>Biology, little and often</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-aside-foot">
+      <div class="auth-stat"><strong>12k+</strong><span>learners</span></div>
+      <div class="auth-stat"><strong>4.9</strong><span>average calm</span></div>
+      <div class="auth-stat"><strong>38</strong><span>focused lessons</span></div>
+    </div>
+  </aside>
+
+  <section class="auth-main">
+    <div class="auth-card">
+      <a class="brand auth-mobile-brand" href="index.html">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12 3.5v5M12 15.5v5M3.5 12h5M15.5 12h5"/><circle cx="12" cy="12" r="2.3"/>
+          </svg>
+        </span>
+        <span>Lumen</span>
+      </a>
+
+      <span class="eyebrow"><span class="dot"></span>Log in</span>
+      <h1>Pick up where<br>you left off.</h1>
+      <p class="auth-sub">Your lessons, cards, notes, and plan are waiting.</p>
+
+      <div class="auth-social">
+        <button class="btn" type="button" data-social-login>
+          <span data-icon="globe"></span> Google
+        </button>
+        <button class="btn" type="button" data-social-login>
+          <span data-icon="school"></span> School SSO
+        </button>
+      </div>
+
+      <div class="auth-divider">or use your email</div>
+
+      <form class="auth-form" id="login-form">
+        <div class="field">
+          <label class="label" for="email">Email address</label>
+          <div class="input-icon">
+            <span data-icon="mail"></span>
+            <input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required value="alex@lumen.app">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label" for="password">Password</label>
+          <div class="input-icon password-wrap">
+            <span data-icon="lock"></span>
+            <input class="input has-trailing" id="password" name="password" type="password" autocomplete="current-password" placeholder="Your password" required minlength="6" value="study123">
+            <button class="input-trailing" type="button" data-toggle-password="password" aria-label="Show password"><span data-icon="eye"></span></button>
+          </div>
+        </div>
+        <div class="auth-row-between">
+          <label class="check-row"><input type="checkbox" name="remember" checked> Remember me</label>
+          <a href="forgot.html">Forgot password?</a>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">Log in</button>
+      </form>
+
+      <p class="auth-legal">Demo mode — any valid email and a 6+ character password will work.</p>
+      <p class="auth-footer">New to Lumen? <a href="signup.html">Create an account</a></p>
+    </div>
+  </section>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.init();
+
+  document.querySelectorAll('[data-toggle-password]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var input = document.getElementById(button.dataset.togglePassword);
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      button.innerHTML = UI.icon(show ? 'eyeOff' : 'eye');
+      button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      button.setAttribute('title', show ? 'Hide password' : 'Show password');
+    });
+  });
+
+  document.querySelectorAll('[data-social-login]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      Store.data.profile.name = 'Alex Rivera';
+      Store.data.profile.email = 'alex@lumen.app';
+      Store.save();
+      window.location.href = 'dashboard.html';
+    });
+  });
+
+  document.getElementById('login-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    if (!email || !email.includes('@')) {
+      UI.toast('Enter a valid email address.', 'error');
+      document.getElementById('email').focus();
+      return;
+    }
+    if (password.length < 6) {
+      UI.toast('Your password needs at least 6 characters.', 'error');
+      document.getElementById('password').focus();
+      return;
+    }
+    Store.data.profile.email = email;
+    Store.data.profile.name = email.toLowerCase() === 'alex@lumen.app' ? 'Alex Rivera' : App.nameFromEmail(email);
+    Store.data.profile.onboarded = true;
+    Store.save();
+    window.location.href = 'dashboard.html';
+  });
+</script>
+</body>
+</html>

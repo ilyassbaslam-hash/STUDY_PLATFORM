@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiz — Lumen</title>
+  <meta name="description" content="A short practice quiz in Lumen.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body>
+
+<header class="focus-top">
+  <a class="focus-back" href="quizzes.html"><span data-icon="arrowLeft"></span> Quizzes</a>
+  <span class="focus-sep" aria-hidden="true"></span>
+  <span class="focus-title" id="focus-title">Quiz</span>
+  <div class="focus-track">
+    <div class="progress"><span id="focus-bar" style="width:0%"></span></div>
+    <span id="focus-count">0 / 0</span>
+  </div>
+  <div class="focus-actions">
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch theme"></button>
+    <a class="icon-btn" href="quizzes.html" aria-label="Leave quiz" title="Leave quiz"><span data-icon="x"></span></a>
+  </div>
+</header>
+
+<main id="quiz-root"></main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.init();
+
+  var quiz = App.getQuiz(App.param('id'));
+  var root = document.getElementById('quiz-root');
+  var focusTitle = document.getElementById('focus-title');
+  var focusBar = document.getElementById('focus-bar');
+  var focusCount = document.getElementById('focus-count');
+
+  var current = 0;
+  var selected = null;
+  var checked = false;
+  var correctCount = 0;
+  var answers = [];
+  var startedAt = Date.now();
+  var elapsed = 0;
+  var timerId = null;
+  var finished = false;
+
+  var LETTERS = ['A', 'B', 'C', 'D', 'E'];
+
+  function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+  function elapsedLabel() {
+    return Math.floor(elapsed / 60) + ':' + pad(elapsed % 60);
+  }
+
+  function syncTop() {
+    if (!quiz) return;
+    var total = quiz.questions.length;
+    var pos = finished ? total : Math.min(current + 1, total);
+    focusCount.textContent = pos + ' / ' + total;
+    var pct = finished ? 100 : Math.round(((current + (checked ? 1 : 0)) / total) * 100);
+    focusBar.style.width = pct + '%';
+  }
+
+  function startTimer() {
+    if (timerId) clearInterval(timerId);
+    startedAt = Date.now();
+    elapsed = 0;
+    timerId = setInterval(function () {
+      elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      var timer = document.querySelector('.quiz-topline .timer span');
+      if (timer) timer.textContent = elapsedLabel();
+    }, 1000);
+  }
+
+  function renderMissing() {
+    focusBar.style.width = '0%';
+    focusCount.textContent = '0 / 0';
+    root.innerHTML =
+      '<div class="quiz-page">' +
+        '<div class="empty" style="padding:60px 20px;">' +
+          '<span class="empty-icon" data-icon="quiz"></span>' +
+          '<h3>Quiz not found</h3>' +
+          '<p>That quiz may have moved, or the link is out of date.</p>' +
+          '<a class="btn btn-primary btn-sm" href="quizzes.html">Browse quizzes</a>' +
+        '</div>' +
+      '</div>';
+    UI.hydrateIcons();
+  }
+
+  function renderQuestion() {
+    if (!quiz) return;
+    if (current >= quiz.questions.length) {
+      finish();
+      return;
+    }
+
+    var question = quiz.questions[current];
+    var total = quiz.questions.length;
+    checked = false;
+    selected = null;
+
+    root.innerHTML =
+      '<div class="quiz-page">' +
+        '<div class="quiz-topline">' +
+          '<span>Question ' + (current + 1) + ' of ' + total + ' · ' + App.esc(quiz.subject) + '</span>' +
+          '<span class="timer">' + UI.icon('clock') + '<span>' + elapsedLabel() + '</span></span>' +
+        '</div>' +
+        '<div class="quiz-card-main">' +
+          '<div class="quiz-progress"><div class="progress"><span id="quiz-bar" style="width:' + Math.round((current / total) * 100) + '%"></span></div></div>' +
+          '<div class="quiz-q-num">Question ' + (current + 1) + '</div>' +
+          '<h1 class="quiz-question">' + App.esc(question.q) + '</h1>' +
+          '<div class="options" id="options" role="radiogroup" aria-label="Answer choices">' +
+            question.options.map(function (option, i) {
+              return '<label class="option" data-option="' + i + '">' +
+                '<input type="radio" name="answer" value="' + i + '">' +
+                '<span class="option-key">' + LETTERS[i] + '</span>' +
+                '<span>' + App.esc(option) + '</span>' +
+              '</label>';
+            }).join('') +
+          '</div>' +
+          '<div id="feedback"></div>' +
+          '<div class="quiz-bottom">' +
+            '<span class="muted" id="quiz-helper">Choose one answer</span>' +
+            '<button class="btn btn-primary" type="button" id="quiz-next" disabled>Check answer</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.querySelectorAll('.option input').forEach(function (input) {
+      input.addEventListener('change', function () {
+        if (checked) return;
+        selected = Number(input.value);
+        document.getElementById('quiz-helper').textContent = 'Answer selected';
+        document.getElementById('quiz-next').disabled = false;
+      });
+    });
+
+    document.getElementById('quiz-next').addEventListener('click', function () {
+      if (!checked) checkAnswer();
+      else advance();
+    });
+
+    syncTop();
+  }
+
+  function checkAnswer() {
+    if (selected === null || checked) return;
+    var question = quiz.questions[current];
+    var correct = selected === question.answer;
+    checked = true;
+    if (correct) correctCount++;
+
+    var optionEls = Array.from(document.querySelectorAll('#options .option'));
+    optionEls.forEach(function (label, i) {
+      label.querySelector('input').disabled = true;
+      label.style.pointerEvents = 'none';
+      if (i === question.answer) label.classList.add('correct');
+      if (i === selected && !correct) label.classList.add('wrong');
+    });
+
+    document.getElementById('feedback').innerHTML =
+      '<div style="margin-top:16px;">' +
+        '<span class="badge ' + (correct ? 'badge-green' : 'badge-red') + '">' +
+          UI.icon(correct ? 'check' : 'x') + (correct ? 'Correct' : 'Not quite') +
+        '</span>' +
+        '<div class="review-explainer">' + App.esc(question.explanation) + '</div>' +
+      '</div>';
+
+    document.getElementById('quiz-helper').textContent = correct ? 'That is the one.' : 'The correct answer is highlighted.';
+    var next = document.getElementById('quiz-next');
+    next.textContent = current === quiz.questions.length - 1 ? 'See results' : 'Next question';
+    next.disabled = false;
+
+    answers.push({ selected: selected, correct: correct });
+    document.getElementById('quiz-bar').style.width = Math.round(((current + 1) / quiz.questions.length) * 100) + '%';
+    syncTop();
+  }
+
+  function advance() {
+    if (!checked) return;
+    current++;
+    if (current >= quiz.questions.length) finish();
+    else renderQuestion();
+  }
+
+  function finish() {
+    finished = true;
+    clearInterval(timerId);
+    elapsed = Math.floor((Date.now() - startedAt) / 1000);
+    var total = quiz.questions.length;
+    var pct = total ? Math.round((correctCount / total) * 100) : 0;
+    App.recordQuiz(quiz.id, pct);
+
+    var headline = pct >= 90 ? 'Excellent recall.' : pct >= 70 ? 'Solid work.' : pct >= 50 ? 'A good start.' : 'Worth another pass.';
+    var subline = pct >= 70
+      ? 'You are reading the ideas well. Keep bringing them back over the next week.'
+      : 'The gaps are useful information. Review the explanations, then try again after a short break.';
+
+    focusBar.style.width = '100%';
+    focusCount.textContent = total + ' / ' + total;
+    focusTitle.textContent = quiz.title;
+
+    root.innerHTML =
+      '<div class="result-page">' +
+        '<div class="result-hero">' +
+          '<div class="result-ring">' + App.ring(pct, { size: 128, stroke: 8, className: pct >= 70 ? 'green' : '' }) + '<div class="ring-center"><strong>' + pct + '%</strong><span>score</span></div></div>' +
+          '<h1>' + headline + '</h1>' +
+          '<p>' + subline + '</p>' +
+          '<div class="result-actions">' +
+            '<button class="btn btn-primary" type="button" id="retake">Retake quiz ' + UI.icon('refresh') + '</button>' +
+            '<a class="btn" href="quizzes.html">Back to quizzes</a>' +
+            '<a class="btn" href="#review">Review answers</a>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="card card-pad">' +
+          '<div class="card-head" style="margin-bottom:2px;">' +
+            '<div><h2>' + App.esc(quiz.title) + '</h2><span class="muted">' + total + ' questions · ' + App.esc(quiz.subject) + '</span></div>' +
+            '<div class="week-total">' + correctCount + '<small>of ' + total + ' correct</small></div>' +
+          '</div>' +
+          '<div class="done-stats" style="border-top:0;padding-top:8px;">' +
+            '<div class="done-stat"><strong>' + correctCount + '</strong><span>correct</span></div>' +
+            '<div class="done-stat"><strong>' + (total - correctCount) + '</strong><span>to revisit</span></div>' +
+            '<div class="done-stat"><strong>' + elapsedLabel() + '</strong><span>time taken</span></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div id="review">' +
+          '<div class="review-head"><h2>Review answers</h2><span class="muted">' + (total - correctCount ? (total - correctCount) + ' worth a second look' : 'All correct') + '</span></div>' +
+          quiz.questions.map(function (question, i) {
+            var answer = answers[i] || { selected: null, correct: false };
+            var yours = answer.selected === null ? 'No answer' : question.options[answer.selected];
+            return '<div class="review-item ' + (answer.correct ? 'correct' : 'wrong') + '">' +
+              '<div class="review-q">' + UI.icon(answer.correct ? 'check' : 'x') + '<span>' + (i + 1) + '. ' + App.esc(question.q) + '</span></div>' +
+              '<div class="review-answers">' +
+                '<span>Your answer: <b>' + App.esc(yours) + '</b></span>' +
+                (answer.correct ? '' : '<span>Correct answer: <b>' + App.esc(question.options[question.answer]) + '</b></span>') +
+              '</div>' +
+              '<div class="review-explainer">' + App.esc(question.explanation) + '</div>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+
+    document.getElementById('retake').addEventListener('click', restart);
+  }
+
+  function restart() {
+    current = 0;
+    selected = null;
+    checked = false;
+    correctCount = 0;
+    answers = [];
+    finished = false;
+    elapsed = 0;
+    startTimer();
+    renderQuestion();
+  }
+
+  document.addEventListener('keydown', function (event) {
+    if (!quiz) return;
+    if (event.key === 'Escape') {
+      window.location.href = 'quizzes.html';
+      return;
+    }
+    if (finished) return;
+    if (!checked && /^[1-5]$/.test(event.key)) {
+      var index = Number(event.key) - 1;
+      if (index < quiz.questions[current].options.length) {
+        var input = document.querySelector('.option[data-option="' + index + '"] input');
+        if (input) {
+          input.checked = true;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      return;
+    }
+    if (event.key === 'Enter') {
+      var next = document.getElementById('quiz-next');
+      if (next && !next.disabled) {
+        event.preventDefault();
+        next.click();
+      }
+    }
+  });
+
+  if (!quiz) {
+    renderMissing();
+  } else {
+    document.title = quiz.title + ' — Quiz — Lumen';
+    focusTitle.textContent = quiz.title;
+    startTimer();
+    renderQuestion();
+  }
+  UI.hydrateIcons();
+</script>
+</body>
+</html>

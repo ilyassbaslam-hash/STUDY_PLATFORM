@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search — Lumen</title>
+  <meta name="description" content="Find lessons, decks, quizzes, and notes across Lumen.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="search">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="search-page">
+        <div class="search-hero">
+          <h1>Find anything.</h1>
+          <p>Lessons, decks, quizzes, and notes — all in one place.</p>
+          <form class="big-search" id="search-form" role="search" action="search.html">
+            <span data-icon="search"></span>
+            <input type="search" id="search-input" name="q" placeholder="Try “membrane”, “derivatives”, or “memory”…"
+              aria-label="Search Lumen" autocomplete="off" spellcheck="false">
+            <button class="btn btn-primary btn-sm" type="submit">Search</button>
+          </form>
+          <div class="search-suggestions" id="search-suggestions"></div>
+        </div>
+
+        <div id="search-results" aria-live="polite"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'search' });
+
+  var form = document.getElementById('search-form');
+  var input = document.getElementById('search-input');
+  var resultsWrap = document.getElementById('search-results');
+  var suggestionsWrap = document.getElementById('search-suggestions');
+  var searchTimer = null;
+  var LIMIT = 8;
+
+  /* ----- Search index ----------------------------------------- */
+  var index = [];
+
+  DB.courses.forEach(function (course) {
+    index.push({
+      group: 'Courses',
+      icon: 'book',
+      tone: course.tone,
+      title: course.title,
+      sub: course.subject + ' · ' + course.level + ' · ' + App.courseLessons(course).length + ' lessons',
+      body: course.blurb + ' ' + course.subject + ' ' + course.title + ' ' + (course.terms || []).join(' '),
+      href: 'course.html?id=' + encodeURIComponent(course.id)
+    });
+
+    App.courseLessons(course).forEach(function (lesson) {
+      var note = (window.LESSON_NOTES || {})[lesson.id] || {};
+      index.push({
+        group: 'Lessons',
+        icon: 'note',
+        tone: course.tone,
+        title: lesson.title,
+        sub: course.title + ' · ' + lesson.moduleTitle + ' · ' + lesson.mins + ' min',
+        body: [note.summary, note.detail, lesson.title, lesson.moduleTitle, course.title, course.subject].join(' '),
+        href: 'lesson.html?course=' + encodeURIComponent(course.id) + '&lesson=' + encodeURIComponent(lesson.id)
+      });
+    });
+  });
+
+  App.allDecks().forEach(function (deck) {
+    index.push({
+      group: 'Flashcards',
+      icon: 'cards',
+      tone: deck.tone,
+      title: deck.title,
+      sub: 'Deck · ' + deck.subject + ' · ' + deck.cards.length + ' cards' + (deck.custom ? ' · custom' : ''),
+      body: deck.description + ' ' + deck.title + ' ' + deck.subject + ' ' + deck.cards.map(function (card) {
+        return card.front + ' ' + card.back;
+      }).join(' '),
+      href: 'study.html?deck=' + encodeURIComponent(deck.id)
+    });
+  });
+
+  DB.quizzes.forEach(function (quiz) {
+    var stats = App.quizStats(quiz.id);
+    index.push({
+      group: 'Quizzes',
+      icon: 'quiz',
+      tone: quiz.tone,
+      title: quiz.title,
+      sub: 'Quiz · ' + quiz.subject + ' · ' + quiz.questions.length + ' questions' +
+        (stats ? ' · best ' + stats.best + '%' : ''),
+      body: quiz.description + ' ' + quiz.title + ' ' + quiz.subject + ' ' + quiz.questions.map(function (question) {
+        return question.q + ' ' + question.options.join(' ') + ' ' + question.explanation;
+      }).join(' '),
+      href: 'quiz.html?id=' + encodeURIComponent(quiz.id)
+    });
+  });
+
+  Store.data.notes.forEach(function (note) {
+    index.push({
+      group: 'Notes',
+      icon: 'note',
+      tone: 'sand',
+      title: note.title || 'Untitled note',
+      sub: (note.tag || 'General') + ' · ' + App.relativeDate(note.updated),
+      body: note.body + ' ' + note.title + ' ' + note.tag,
+      href: 'notes.html?note=' + encodeURIComponent(note.id)
+    });
+  });
+
+  var SUGGESTIONS = ['cell membrane', 'derivative rules', 'memory', 'Spanish verbs', 'World War II', 'DNA'];
+
+  function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function highlight(text, query) {
+    var safe = App.esc(text);
+    if (!query) return safe;
+    var escapedQuery = App.esc(query);
+    try {
+      return safe.replace(new RegExp('(' + escapeRegExp(escapedQuery) + ')', 'ig'), '<mark>$1</mark>');
+    } catch (err) {
+      return safe;
+    }
+  }
+
+  function snippet(text, query) {
+    var clean = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!query) return clean.slice(0, 120) + (clean.length > 120 ? '…' : '');
+    var position = clean.toLowerCase().indexOf(query.toLowerCase());
+    if (position === -1) return clean.slice(0, 120) + (clean.length > 120 ? '…' : '');
+    var start = Math.max(0, position - 44);
+    var end = Math.min(clean.length, position + query.length + 76);
+    return (start > 0 ? '…' : '') + clean.slice(start, end) + (end < clean.length ? '…' : '');
+  }
+
+  function search(query) {
+    var q = String(query || '').trim();
+    var needle = q.toLowerCase();
+
+    if (!needle) {
+      suggestionsWrap.innerHTML = SUGGESTIONS.map(function (suggestion) {
+        return '<button class="chip" type="button" data-suggestion="' + App.esc(suggestion) + '">' + App.esc(suggestion) + '</button>';
+      }).join('');
+      renderIdle();
+      return;
+    }
+
+    suggestionsWrap.innerHTML = '';
+    var results = index.map(function (item) {
+      var title = item.title.toLowerCase();
+      var sub = item.sub.toLowerCase();
+      var body = item.body.toLowerCase();
+      var score = 0;
+      if (title === needle) score += 8;
+      if (title.indexOf(needle) !== -1) score += 5;
+      if (sub.indexOf(needle) !== -1) score += 2;
+      if (body.indexOf(needle) !== -1) score += 1;
+      return { item: item, score: score };
+    }).filter(function (result) {
+      return result.score > 0;
+    }).sort(function (a, b) {
+      return b.score - a.score || a.item.title.localeCompare(b.item.title);
+    });
+
+    if (!results.length) {
+      resultsWrap.innerHTML =
+        '<div class="search-empty">' +
+          '<span class="empty-icon" data-icon="search" style="margin:0 auto 14px;"></span>' +
+          '<h2>Nothing matched “' + App.esc(q) + '”.</h2>' +
+          '<p>Try a shorter phrase, a subject name, or one of these.</p>' +
+          '<div class="search-suggestions">' +
+            SUGGESTIONS.slice(0, 4).map(function (suggestion) {
+              return '<button class="chip" type="button" data-suggestion="' + App.esc(suggestion) + '">' + App.esc(suggestion) + '</button>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      UI.hydrateIcons(resultsWrap);
+      return;
+    }
+
+    var groups = ['Courses', 'Lessons', 'Flashcards', 'Quizzes', 'Notes'];
+    var total = Math.min(results.length, 40);
+    var html =
+      '<div class="search-meta">' +
+        '<span><strong>' + results.length + '</strong> result' + (results.length === 1 ? '' : 's') + ' for “' + App.esc(q) + '”</span>' +
+        '<button class="link-arrow" type="button" id="clear-search">Clear <span data-icon="x"></span></button>' +
+      '</div>';
+
+    var shown = 0;
+    groups.forEach(function (group) {
+      var inGroup = results.filter(function (result) { return result.item.group === group; }).slice(0, LIMIT);
+      if (!inGroup.length) return;
+      shown += inGroup.length;
+      html += '<section class="search-group">' +
+        '<h2>' + group + ' <span style="opacity:.65;">(' + results.filter(function (r) { return r.item.group === group; }).length + ')</span></h2>' +
+        inGroup.map(function (result) {
+          var item = result.item;
+          return '<a class="search-result" href="' + item.href + '">' +
+            '<span class="tone-tile" data-tone="' + item.tone + '">' + UI.icon(item.icon) + '</span>' +
+            '<span class="search-result-copy">' +
+              '<span class="search-result-title">' + highlight(item.title, q) + '</span>' +
+              '<span class="search-result-sub">' + highlight(item.sub, q) + ' · ' + highlight(snippet(item.body, q), q) + '</span>' +
+            '</span>' +
+            UI.icon('chevronRight') +
+          '</a>';
+        }).join('') +
+      '</section>';
+    });
+
+    resultsWrap.innerHTML = html;
+    var clear = document.getElementById('clear-search');
+    if (clear) clear.addEventListener('click', function () {
+      setQuery('');
+      input.focus();
+    });
+  }
+
+  function renderIdle() {
+    var recent = App.continueTarget();
+    var recentDeck = App.allDecks()[0];
+    resultsWrap.innerHTML =
+      '<div class="search-meta"><span>Start somewhere</span><span>Or use <span class="kbd">/</span> anywhere in Lumen</span></div>' +
+      '<section class="search-group">' +
+        '<h2>Pick up again</h2>' +
+        '<a class="search-result" href="lesson.html?course=' + encodeURIComponent(recent.course.id) + '&lesson=' + encodeURIComponent(recent.lesson.id) + '">' +
+          '<span class="tone-tile" data-tone="' + recent.course.tone + '">' + UI.icon('book') + '</span>' +
+          '<span class="search-result-copy">' +
+            '<span class="search-result-title">' + App.esc(recent.lesson.title) + '</span>' +
+            '<span class="search-result-sub">' + App.esc(recent.course.title) + ' · next lesson</span>' +
+          '</span>' + UI.icon('chevronRight') +
+        '</a>' +
+        (recentDeck ? '<a class="search-result" href="study.html?deck=' + encodeURIComponent(recentDeck.id) + '">' +
+          '<span class="tone-tile" data-tone="' + recentDeck.tone + '">' + UI.icon('cards') + '</span>' +
+          '<span class="search-result-copy">' +
+            '<span class="search-result-title">' + App.esc(recentDeck.title) + '</span>' +
+            '<span class="search-result-sub">' + App.esc(recentDeck.subject) + ' · flashcards</span>' +
+          '</span>' + UI.icon('chevronRight') +
+        '</a>' : '') +
+        '<a class="search-result" href="planner.html">' +
+          '<span class="tone-tile" data-tone="lavender">' + UI.icon('calendar') + '</span>' +
+          '<span class="search-result-copy">' +
+            '<span class="search-result-title">Your week</span>' +
+            '<span class="search-result-sub">' + Store.data.tasks.length + ' planned tasks · planner</span>' +
+          '</span>' + UI.icon('chevronRight') +
+        '</a>' +
+      '</section>';
+    UI.hydrateIcons(resultsWrap);
+  }
+
+  function setQuery(value) {
+    input.value = value;
+    try {
+      var url = new URL(window.location.href);
+      if (value) url.searchParams.set('q', value);
+      else url.searchParams.delete('q');
+      window.history.replaceState(null, '', url.pathname + url.search);
+    } catch (err) { /* ignore */ }
+    search(value);
+  }
+
+  suggestionsWrap.addEventListener('click', function (event) {
+    var chip = event.target.closest('[data-suggestion]');
+    if (!chip) return;
+    setQuery(chip.dataset.suggestion);
+    input.focus();
+  });
+
+  resultsWrap.addEventListener('click', function (event) {
+    var chip = event.target.closest('[data-suggestion]');
+    if (!chip) return;
+    setQuery(chip.dataset.suggestion);
+    input.focus();
+  });
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    setQuery(input.value.trim());
+  });
+
+  input.addEventListener('input', function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () {
+      setQuery(input.value.trim());
+    }, 160);
+  });
+
+  var initial = App.param('q');
+  input.value = initial;
+  search(initial);
+</script>
+</body>
+</html>

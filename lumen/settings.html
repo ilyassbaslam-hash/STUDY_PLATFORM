@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings — Lumen</title>
+  <meta name="description" content="Make Lumen fit the way you study.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="settings">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Settings</h1>
+          <p class="page-sub">Make Lumen fit the way you study. Everything stays on this device.</p>
+        </div>
+        <div class="page-actions">
+          <a class="btn" href="onboarding.html"><span data-icon="sparkle"></span> Revisit setup</a>
+        </div>
+      </div>
+
+      <div class="settings-wrap">
+
+        <!-- Profile -->
+        <section class="settings-section">
+          <div class="settings-section-head">
+            <h2>Profile</h2>
+            <p>The name and goal that show up around Lumen.</p>
+          </div>
+          <div class="settings-section-body">
+            <div class="avatar-edit">
+              <span class="avatar avatar-lg" id="avatar-preview"></span>
+              <div class="avatar-edit-copy">
+                <strong>Your avatar</strong>
+                <span>Pick a colour — the initials come from your name.</span>
+                <div class="swatches" id="avatar-swatches" role="group" aria-label="Avatar colour"></div>
+              </div>
+            </div>
+
+            <form class="form-stack" id="profile-form">
+              <div class="form-grid">
+                <div class="field">
+                  <label class="label" for="profile-name">Full name</label>
+                  <input class="input" id="profile-name" name="name" type="text" required maxlength="60" autocomplete="name">
+                </div>
+                <div class="field">
+                  <label class="label" for="profile-email">Email</label>
+                  <input class="input" id="profile-email" name="email" type="email" required maxlength="120" autocomplete="email">
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="profile-goal">Main goal</label>
+                <select class="select" id="profile-goal" name="goal">
+                  <option>Pass my finals</option>
+                  <option>Keep up with classes</option>
+                  <option>Learn something new</option>
+                  <option>Build a steady habit</option>
+                  <option>Prepare for an exam</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <span class="label">Subjects <span class="hint">choose what you are studying</span></span>
+                <div class="chips" id="subject-chips"></div>
+              </div>
+
+              <div class="settings-actions">
+                <button class="btn btn-primary" type="submit">Save changes</button>
+                <span class="muted tiny" id="profile-status" style="align-self:center;"></span>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- Appearance -->
+        <section class="settings-section">
+          <div class="settings-section-head">
+            <h2>Appearance</h2>
+            <p>Small adjustments to how the page feels.</p>
+          </div>
+          <div class="settings-section-body">
+            <div class="setting-row">
+              <div>
+                <h3>Theme</h3>
+                <p>Lumen is designed to be readable in both. Pick whichever is easier on your eyes right now.</p>
+              </div>
+              <div class="segmented" id="theme-seg" role="group" aria-label="Theme">
+                <button type="button" data-theme-choice="light">Light</button>
+                <button type="button" data-theme-choice="dark">Dark</button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div>
+                <h3>Reduce motion</h3>
+                <p>Turn off the small transitions and hover lifts. Useful if movement is distracting.</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="reduce-motion">
+                <span class="switch-track"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div>
+                <h3>Sounds</h3>
+                <p>A quiet confirmation when you finish a card or a quiz. Off by default.</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="sounds">
+                <span class="switch-track"></span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Study preferences -->
+        <section class="settings-section">
+          <div class="settings-section-head">
+            <h2>Study preferences</h2>
+            <p>These shape the targets the rest of the app shows you.</p>
+          </div>
+          <div class="settings-section-body">
+            <div class="setting-row">
+              <div>
+                <h3>Daily study goal</h3>
+                <p>Used for the weekly goal on your progress page. Choose something you can keep on a busy day.</p>
+              </div>
+              <select class="select" id="daily-goal" aria-label="Daily study goal">
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="90">1 hour 30</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <div>
+                <h3>Study reminders</h3>
+                <p>A gentle daily nudge. No streak guilt, just a reminder that a short session counts.</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="reminders">
+                <span class="switch-track"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div>
+                <h3>Reminder time</h3>
+                <p>When the daily reminder should appear, if reminders are on.</p>
+              </div>
+              <select class="select" id="reminder-time" aria-label="Reminder time">
+                <option value="08:00">8:00 AM</option>
+                <option value="12:00">12:00 PM</option>
+                <option value="16:00">4:00 PM</option>
+                <option value="18:00">6:00 PM</option>
+                <option value="20:00">8:00 PM</option>
+                <option value="21:30">9:30 PM</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- Data -->
+        <section class="settings-section">
+          <div class="settings-section-head">
+            <h2>Your data</h2>
+            <p>Lumen keeps everything in this browser. Nothing is sent anywhere.</p>
+          </div>
+          <div class="settings-section-body">
+            <div class="setting-row">
+              <div>
+                <h3>Export a copy</h3>
+                <p>Download your courses progress, notes, decks, quiz scores, and planner as a JSON file.</p>
+              </div>
+              <button class="btn" type="button" id="export-data"><span data-icon="arrowDown"></span> Export</button>
+            </div>
+
+            <div class="setting-row">
+              <div class="danger-row" style="display:block;">
+                <h3>Reset demo data</h3>
+                <p>Clear this browser's Lumen data and start again with the original demo content. Your notes and custom decks will be removed.</p>
+              </div>
+              <button class="btn btn-danger" type="button" id="reset-data"><span data-icon="trash"></span> Reset</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- About -->
+        <section class="settings-section">
+          <div class="settings-section-head">
+            <h2>About Lumen</h2>
+            <p>Study, made easy.</p>
+          </div>
+          <div class="settings-section-body">
+            <div class="setting-row">
+              <div><h3>Version</h3><p>A small, static demo built with plain HTML, CSS, and JavaScript.</p></div>
+              <span class="badge badge-outline">1.0.0</span>
+            </div>
+            <div class="setting-row">
+              <div><h3>Keyboard</h3><p>Press <span class="kbd">/</span> to search from anywhere, <span class="kbd">Space</span> to flip a card, and <span class="kbd">1</span> or <span class="kbd">2</span> to rate it.</p></div>
+            </div>
+            <div class="setting-row">
+              <div><h3>Need a fresh start?</h3><p>Revisit the short setup to reset your goal and subjects without touching your notes.</p></div>
+              <a class="btn btn-sm" href="onboarding.html">Open setup</a>
+            </div>
+          </div>
+        </section>
+
+        <p class="settings-footer-note">Lumen · Study, made easy · Made to be read, not admired.</p>
+
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'settings' });
+
+  var profile = Store.data.profile;
+  var settings = Store.data.settings;
+  var TONES = ['lavender', 'mint', 'sky', 'peach', 'sand', 'rose'];
+  var SUBJECTS = ['Biology', 'Mathematics', 'Psychology', 'History', 'Chemistry', 'Computer science', 'Languages'];
+  var chosenSubjects = Array.isArray(profile.subjects) ? profile.subjects.slice() : [];
+  var chosenTone = TONES.indexOf(profile.avatarTone) !== -1 ? profile.avatarTone : 'lavender';
+
+  function initialsOf(name) {
+    return App.initials(name || 'Learner');
+  }
+
+  /* ----- Avatar ----------------------------------------------- */
+  function renderAvatar() {
+    var preview = document.getElementById('avatar-preview');
+    preview.textContent = initialsOf(document.getElementById('profile-name').value || profile.name);
+    preview.setAttribute('data-tone', chosenTone);
+
+    document.getElementById('avatar-swatches').innerHTML = TONES.map(function (tone) {
+      return '<button class="swatch' + (tone === chosenTone ? ' active' : '') + '" type="button" data-tone="' + tone +
+        '" data-avatar-tone="' + tone + '" style="background:var(--tone);" aria-label="' + tone + ' avatar" title="' + tone + '"></button>';
+    }).join('');
+  }
+
+  document.getElementById('avatar-swatches').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-avatar-tone]');
+    if (!button) return;
+    chosenTone = button.dataset.avatarTone;
+    renderAvatar();
+  });
+
+  /* ----- Profile form ----------------------------------------- */
+  document.getElementById('profile-name').value = profile.name || '';
+  document.getElementById('profile-email').value = profile.email || '';
+  document.getElementById('profile-goal').value = profile.goal || 'Pass my finals';
+
+  function renderSubjects() {
+    document.getElementById('subject-chips').innerHTML = SUBJECTS.map(function (subject) {
+      return '<button class="chip' + (chosenSubjects.indexOf(subject) !== -1 ? ' active' : '') +
+        '" type="button" data-subject="' + App.esc(subject) + '">' + App.esc(subject) + '</button>';
+    }).join('');
+  }
+
+  document.getElementById('subject-chips').addEventListener('click', function (event) {
+    var chip = event.target.closest('[data-subject]');
+    if (!chip) return;
+    var subject = chip.dataset.subject;
+    var index = chosenSubjects.indexOf(subject);
+    if (index === -1) chosenSubjects.push(subject);
+    else chosenSubjects.splice(index, 1);
+    renderSubjects();
+  });
+
+  document.getElementById('profile-name').addEventListener('input', renderAvatar);
+
+  document.getElementById('profile-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var name = document.getElementById('profile-name').value.trim();
+    var email = document.getElementById('profile-email').value.trim();
+
+    if (name.length < 2) {
+      UI.toast('A name needs at least two characters.', 'error');
+      document.getElementById('profile-name').focus();
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      UI.toast('That email does not look quite right.', 'error');
+      document.getElementById('profile-email').focus();
+      return;
+    }
+
+    profile.name = name;
+    profile.email = email;
+    profile.goal = document.getElementById('profile-goal').value;
+    profile.subjects = chosenSubjects.slice();
+    profile.avatarTone = chosenTone;
+    Store.save();
+
+    refreshShellIdentity();
+    var status = document.getElementById('profile-status');
+    status.textContent = 'Saved just now';
+    UI.toast('Profile updated.');
+    setTimeout(function () { status.textContent = ''; }, 2600);
+  });
+
+  function refreshShellIdentity() {
+    var name = Store.data.profile.name;
+    var email = Store.data.profile.email;
+    var tone = Store.data.profile.avatarTone || 'lavender';
+    document.querySelectorAll('.side-user-name').forEach(function (el) { el.textContent = name; });
+    document.querySelectorAll('.side-user-mail').forEach(function (el) { el.textContent = email; });
+    document.querySelectorAll('.side-user .avatar, .top-actions .avatar').forEach(function (el) {
+      el.textContent = initialsOf(name);
+      el.setAttribute('data-tone', tone);
+    });
+  }
+
+  /* ----- Appearance ------------------------------------------- */
+  function paintThemeChoice() {
+    var current = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    document.querySelectorAll('[data-theme-choice]').forEach(function (button) {
+      button.classList.toggle('active', button.dataset.themeChoice === current);
+    });
+  }
+
+  document.getElementById('theme-seg').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-theme-choice]');
+    if (!button) return;
+    UI.setTheme(button.dataset.themeChoice);
+    paintThemeChoice();
+  });
+  paintThemeChoice();
+
+  var motion = document.getElementById('reduce-motion');
+  motion.checked = !!settings.reduceMotion;
+  motion.addEventListener('change', function () {
+    settings.reduceMotion = motion.checked;
+    document.documentElement.classList.toggle('reduce-motion', motion.checked);
+    Store.save();
+    UI.toast(motion.checked ? 'Motion reduced.' : 'Motion restored.');
+  });
+
+  var sounds = document.getElementById('sounds');
+  sounds.checked = !!settings.sounds;
+  sounds.addEventListener('change', function () {
+    settings.sounds = sounds.checked;
+    Store.save();
+    UI.toast(sounds.checked ? 'Sounds on.' : 'Sounds off.');
+  });
+
+  /* ----- Study preferences ------------------------------------ */
+  var dailyGoal = document.getElementById('daily-goal');
+  dailyGoal.value = String(profile.dailyMinutes || 45);
+  if (!dailyGoal.value) dailyGoal.value = '45';
+  dailyGoal.addEventListener('change', function () {
+    profile.dailyMinutes = Number(dailyGoal.value);
+    Store.save();
+    UI.toast('Daily goal set to ' + App.formatMinutes(profile.dailyMinutes) + '.');
+  });
+
+  var reminders = document.getElementById('reminders');
+  reminders.checked = !!settings.reminders;
+  reminders.addEventListener('change', function () {
+    settings.reminders = reminders.checked;
+    Store.save();
+    UI.toast(reminders.checked ? 'Daily reminders on.' : 'Daily reminders off.');
+  });
+
+  var reminderTime = document.getElementById('reminder-time');
+  reminderTime.value = settings.reminderTime || '18:00';
+  if (!reminderTime.value) reminderTime.value = '18:00';
+  reminderTime.addEventListener('change', function () {
+    settings.reminderTime = reminderTime.value;
+    Store.save();
+    UI.toast('Reminder time saved.');
+  });
+
+  /* ----- Data ------------------------------------------------- */
+  document.getElementById('export-data').addEventListener('click', function () {
+    try {
+      var blob = new Blob([JSON.stringify(Store.data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = 'lumen-data.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      UI.toast('Export downloaded.');
+    } catch (err) {
+      UI.toast('This browser could not create the file.', 'error');
+    }
+  });
+
+  document.getElementById('reset-data').addEventListener('click', function () {
+    if (!window.confirm('Reset all Lumen data on this device? Your notes, custom decks, and progress will be replaced with the original demo content.')) return;
+    Store.reset();
+    UI.toast('Starting fresh.');
+    setTimeout(function () {
+      window.location.href = 'dashboard.html';
+    }, 450);
+  });
+
+  renderSubjects();
+  renderAvatar();
+</script>
+</body>
+</html>

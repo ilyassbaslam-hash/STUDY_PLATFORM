@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notes — Lumen</title>
+  <meta name="description" content="Your study notes, kept beside the work they belong to.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>try{var s=JSON.parse(localStorage.getItem('lumen.v1'));if(s&&s.theme)document.documentElement.dataset.theme=s.theme}catch(e){}</script>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/tools.css">
+</head>
+<body data-page="notes">
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="app-frame">
+    <header class="topbar" id="topbar"></header>
+    <main class="app-main" id="main">
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Notes</h1>
+          <p class="page-sub" id="notes-sub"></p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-primary" type="button" id="new-note"><span data-icon="plus"></span> New note</button>
+        </div>
+      </div>
+
+      <div class="notes-layout" id="notes-layout">
+        <aside class="notes-list">
+          <div class="notes-search">
+            <div class="input-icon">
+              <span data-icon="search"></span>
+              <input class="input" type="search" id="note-search" placeholder="Search notes…" aria-label="Search notes" autocomplete="off">
+            </div>
+          </div>
+          <div class="notes-tags" id="note-tags" role="group" aria-label="Filter notes by tag"></div>
+          <div class="notes-items" id="note-items"></div>
+        </aside>
+        <section class="notes-editor" id="notes-editor"></section>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  UI.mountShell({ page: 'notes' });
+
+  var notes = Store.data.notes;
+  var layout = document.getElementById('notes-layout');
+  var itemsWrap = document.getElementById('note-items');
+  var editor = document.getElementById('notes-editor');
+  var searchInput = document.getElementById('note-search');
+  var tagsWrap = document.getElementById('note-tags');
+
+  var tags = ['All'].concat(Array.from(new Set(notes.map(function (note) { return note.tag; }))).sort());
+  var preferredTag = App.param('tag');
+  var activeTag = tags.indexOf(preferredTag) !== -1 ? preferredTag : 'All';
+  var query = '';
+  var activeId = App.param('note') || (notes[0] && notes[0].id) || null;
+  var saveTimer = null;
+  var pendingCommit = null;
+
+  var TAGS = ['General', 'Biology', 'Mathematics', 'Psychology', 'History', 'Chemistry', 'Computer science', 'Study skills'];
+
+  function activeNote() {
+    return notes.find(function (note) { return note.id === activeId; }) || null;
+  }
+
+  function visibleNotes() {
+    return notes.slice().sort(function (a, b) {
+      return new Date(b.updated || 0) - new Date(a.updated || 0);
+    }).filter(function (note) {
+      var matchTag = activeTag === 'All' || note.tag === activeTag;
+      var haystack = (note.title + ' ' + note.body + ' ' + note.tag).toLowerCase();
+      var matchQuery = !query || haystack.indexOf(query) !== -1;
+      return matchTag && matchQuery;
+    });
+  }
+
+  function snippet(body) {
+    return String(body || '').replace(/\s+/g, ' ').trim().slice(0, 130) || 'No text yet.';
+  }
+
+  function renderTags() {
+    var allTags = ['All'].concat(Array.from(new Set(notes.map(function (note) { return note.tag; }))).sort());
+    if (allTags.indexOf(activeTag) === -1) activeTag = 'All';
+    tagsWrap.innerHTML = allTags.map(function (tag) {
+      return '<button class="chip' + (tag === activeTag ? ' active' : '') + '" type="button" data-tag="' + App.esc(tag) + '">' + App.esc(tag) + '</button>';
+    }).join('');
+  }
+
+  function renderList() {
+    var list = visibleNotes();
+    if (!list.length) {
+      itemsWrap.innerHTML = '<div class="notes-empty">' +
+        (notes.length ? 'No notes match that search.' : 'No notes yet.<br>Start one while the idea is fresh.') +
+      '</div>';
+    } else {
+      itemsWrap.innerHTML = list.map(function (note) {
+        return '<button class="note-item' + (note.id === activeId ? ' active' : '') + '" type="button" data-note="' + note.id + '">' +
+          '<div class="note-item-title">' + App.esc(note.title || 'Untitled note') + '</div>' +
+          '<div class="note-item-snippet">' + App.esc(snippet(note.body)) + '</div>' +
+          '<div class="note-item-meta"><span>' + App.esc(note.tag || 'General') + '</span><span class="dot-sep"></span><span>' + App.relativeDate(note.updated) + '</span></div>' +
+        '</button>';
+      }).join('');
+    }
+
+    var count = notes.length;
+    document.getElementById('notes-sub').textContent =
+      count + ' note' + (count === 1 ? '' : 's') + ' · ' +
+      (notes.length ? 'last edited ' + App.relativeDate(notes.slice().sort(function (a, b) { return new Date(b.updated || 0) - new Date(a.updated || 0); })[0].updated).toLowerCase() : 'nothing written yet');
+  }
+
+  function wordCount(text) {
+    var count = String(text || '').trim().split(/\s+/).filter(Boolean).length;
+    return count + (count === 1 ? ' word' : ' words');
+  }
+
+  function renderEditor() {
+    pendingCommit = null;
+    var note = activeNote();
+    if (!note) {
+      editor.innerHTML =
+        '<div class="editor-empty">' +
+          '<div class="empty">' +
+            '<span class="empty-icon" data-icon="note"></span>' +
+            '<h3>No note open</h3>' +
+            '<p>Choose a note from the list, or start a new one.</p>' +
+            '<button class="btn btn-primary btn-sm" type="button" id="empty-new">New note</button>' +
+          '</div>' +
+        '</div>';
+      var make = document.getElementById('empty-new');
+      if (make) make.addEventListener('click', createNote);
+      UI.hydrateIcons(editor);
+      return;
+    }
+
+    var tagOptions = TAGS.slice();
+    if (tagOptions.indexOf(note.tag) === -1 && note.tag) tagOptions.push(note.tag);
+
+    editor.innerHTML =
+      '<div class="editor-top">' +
+        '<button class="icon-btn sm notes-back" type="button" id="notes-back" aria-label="Back to notes"><span data-icon="arrowLeft"></span></button>' +
+        '<input class="editor-title" id="editor-title" type="text" value="' + App.esc(note.title) + '" placeholder="Untitled note" aria-label="Note title">' +
+        '<div class="editor-toolbar">' +
+          '<select class="select" id="editor-tag" aria-label="Note subject">' +
+            tagOptions.map(function (tag) {
+              return '<option' + (tag === note.tag ? ' selected' : '') + '>' + App.esc(tag) + '</option>';
+            }).join('') +
+          '</select>' +
+          '<button class="icon-btn sm" type="button" id="delete-note" aria-label="Delete note" title="Delete note">' + UI.icon('trash') + '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="editor-body-area">' +
+        '<textarea class="editor-body" id="editor-body" placeholder="Start writing…">' + App.esc(note.body) + '</textarea>' +
+      '</div>' +
+      '<div class="editor-foot">' +
+        '<span class="save-state" id="save-state">' + UI.icon('check') + ' All changes saved</span>' +
+        '<span id="word-count">' + wordCount(note.body) + '</span>' +
+      '</div>';
+
+    var title = document.getElementById('editor-title');
+    var body = document.getElementById('editor-body');
+    var state = document.getElementById('save-state');
+    var words = document.getElementById('word-count');
+    var dirty = false;
+
+    function markDirty() {
+      dirty = true;
+      state.innerHTML = UI.icon('clock') + ' Saving…';
+      words.textContent = wordCount(body.value);
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(commit, 450);
+    }
+
+    function commit(force) {
+      if (!dirty && !force) return;
+      var current = activeNote();
+      if (!current) return;
+      dirty = false;
+      current.title = title.value.trim() || 'Untitled note';
+      current.body = body.value;
+      current.tag = document.getElementById('editor-tag').value;
+      current.updated = new Date().toISOString();
+      Store.save();
+      state.innerHTML = UI.icon('check') + ' Saved just now';
+      words.textContent = wordCount(body.value);
+      renderList();
+    }
+    pendingCommit = commit;
+
+    title.addEventListener('input', markDirty);
+    body.addEventListener('input', markDirty);
+    title.addEventListener('blur', function () {
+      if (!title.value.trim()) title.value = 'Untitled note';
+    });
+    document.getElementById('editor-tag').addEventListener('change', function () {
+      dirty = true;
+      commit();
+    });
+    document.getElementById('notes-back').addEventListener('click', function () {
+      layout.classList.remove('is-editing');
+    });
+    document.getElementById('delete-note').addEventListener('click', function () {
+      if (!window.confirm('Delete “' + (note.title || 'Untitled note') + '”? This cannot be undone.')) return;
+      notes = notes.filter(function (item) { return item.id !== note.id; });
+      Store.data.notes = notes;
+      Store.save();
+      activeId = (visibleNotes()[0] || notes[0] || {}).id || null;
+      layout.classList.remove('is-editing');
+      renderTags();
+      renderList();
+      renderEditor();
+      UI.toast('Note deleted.');
+    });
+
+    UI.hydrateIcons(editor);
+  }
+
+  function openNote(id) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    if (pendingCommit) pendingCommit();
+    activeId = id;
+    layout.classList.add('is-editing');
+    renderList();
+    renderEditor();
+  }
+
+  function createNote() {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    if (pendingCommit) pendingCommit();
+    var note = {
+      id: 'note-' + App.uid(),
+      title: 'Untitled note',
+      tag: activeTag === 'All' ? 'General' : activeTag,
+      body: '',
+      updated: new Date().toISOString()
+    };
+    notes.unshift(note);
+    Store.data.notes = notes;
+    Store.save();
+    activeId = note.id;
+    activeTag = 'All';
+    query = '';
+    searchInput.value = '';
+    layout.classList.add('is-editing');
+    renderTags();
+    renderList();
+    renderEditor();
+    var title = document.getElementById('editor-title');
+    if (title) {
+      title.focus();
+      title.select();
+    }
+  }
+
+  itemsWrap.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-note]');
+    if (!button) return;
+    openNote(button.dataset.note);
+  });
+
+  tagsWrap.addEventListener('click', function (event) {
+    var chip = event.target.closest('[data-tag]');
+    if (!chip) return;
+    activeTag = chip.dataset.tag;
+    renderTags();
+    renderList();
+  });
+
+  searchInput.addEventListener('input', function () {
+    query = searchInput.value.trim().toLowerCase();
+    renderList();
+  });
+
+  document.getElementById('new-note').addEventListener('click', createNote);
+
+  renderTags();
+  renderList();
+  renderEditor();
+  if (window.innerWidth > 760 && !activeNote()) {
+    layout.classList.remove('is-editing');
+  }
+</script>
+</body>
+</html>
