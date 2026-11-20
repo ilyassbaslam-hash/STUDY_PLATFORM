@@ -1,0 +1,159 @@
+/* ============================================================
+   STAFED — landing hero
+   Loaded after marketing.css; replaces the split marketing hero
+   with a single centred STAFED wordmark.
+   ============================================================ */
+
+/* ----- Hero shell -------------------------------------------- */
+.hero-stafed {
+  padding: clamp(56px, 8vw, 104px) 0 clamp(64px, 9vw, 112px);
+  overflow-x: clip;
+}
+
+.hero-stafed::before {
+  content: "";
+  position: absolute;
+  left: 50%; right: auto; top: -250px;
+  width: min(980px, 150vw); height: min(720px, 105vw);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, var(--accent-soft), transparent 68%);
+  opacity: .8;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero-stafed .hero-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  position: relative;
+}
+
+.hero-stafed .hero-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* ----- STAFED wordmark --------------------------------------- */
+.hero-stafed .stafed-word {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: center;
+  margin: clamp(16px, 2vw, 24px) 0 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(76px, 21vw, 180px);
+  line-height: .82;
+  letter-spacing: -.035em;
+  white-space: nowrap;
+  color: var(--ink);
+  user-select: none;
+}
+
+.hero-stafed .stafed-letter {
+  display: inline-block;
+  color: var(--ink);
+  opacity: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color .5s ease,
+    opacity .5s ease,
+    text-shadow .5s ease;
+}
+
+/* The first letter is active in the markup, so the word still reads
+   as a wordmark if JavaScript never runs. */
+.hero-stafed .stafed-letter.is-active {
+  color: var(--accent);
+}
+
+.hero-stafed.is-ready .stafed-letter {
+  color: var(--ink-2);
+  opacity: .25;
+}
+
+.hero-stafed.is-ready .stafed-letter.is-active {
+  color: var(--accent);
+  opacity: 1;
+  text-shadow:
+    0 0 .16em color-mix(in srgb, var(--accent) 34%, transparent),
+    0 0 .55em color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.hero-stafed .stafed-letter:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+  border-radius: 2px;
+}
+
+/* ----- Expression + tagline ---------------------------------- */
+.hero-stafed .hero-expression {
+  min-height: 1.2em;
+  margin-top: clamp(18px, 2.4vw, 28px);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(22px, 2.6vw, 30px);
+  line-height: 1.2;
+  letter-spacing: -.005em;
+  color: var(--ink-2);
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.hero-stafed .hero-expression.is-swapping {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.hero-stafed .hero-tagline {
+  margin-top: 8px;
+  font-size: clamp(14px, 1.1vw, 16px);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: .012em;
+  color: var(--ink-2);
+}
+
+/* ----- Actions ----------------------------------------------- */
+.hero-stafed .hero-actions {
+  justify-content: center;
+  margin-top: clamp(26px, 3.2vw, 36px);
+}
+
+/* ----- Reduced motion ---------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .hero-stafed .stafed-letter,
+  .hero-stafed .hero-expression {
+    transition: none;
+  }
+}
+
+html.reduce-motion .hero-stafed .stafed-letter,
+html.reduce-motion .hero-stafed .hero-expression {
+  transition: none;
+}
+
+/* ----- Small screens ----------------------------------------- */
+@media (max-width: 760px) {
+  .hero-stafed .stafed-word {
+    letter-spacing: -.04em;
+  }
+
+  .hero-stafed .hero-expression {
+    margin-top: 18px;
+  }
+
+  .hero-stafed .hero-actions {
+    margin-top: 26px;
+  }
+}
